@@ -71,8 +71,8 @@ export const getWeatherTool = tool(safe(async ({ place }) => {
   return days.map((d) => { const j = judgeHarvestDay(d); return { date: d.date, sky: d.sky, tmn: d.tmn, tmx: d.tmx, maxPop: d.maxPop, work: j.work, why: j.why }; });
 }), {
   name: 'get_weather',
-  description: '제주 농장 날씨 예보(제주시 또는 서귀포시)를 날짜별로 조회하고, 비 예보에 따라 "수확 가능 / 포장 작업만 / 확인 필요"를 판단해 준다. 비가 오면 귤을 딸 수 없고 천막 안 포장만 가능하다.',
-  schema: z.object({ place: z.enum(['제주시', '서귀포시']).describe('농장이 있는 쪽') }),
+  description: '제주 농장 날씨 예보를 날짜별로 조회한다. 지역은 제주시·서귀포시 또는 제주의 읍·면·동 이름(예: 노형동, 남원읍, 중문동)을 쓴다. 비 예보에 따라 "수확 가능 / 포장 작업만 / 확인 필요"를 판단해 준다. 비가 오면 귤을 딸 수 없고 천막 안 포장만 가능하다.',
+  schema: z.object({ place: z.string().describe('제주시·서귀포시 또는 제주의 읍·면·동 이름 (모르면 제주시)') }),
 });
 
 export const getMarketPriceTool = tool(safe(async () => getMarketPrice()), {

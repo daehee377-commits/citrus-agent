@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchWeather, fetchPrice, fetchPest } from '../api/client.js';
 import WorkPill from '../components/WorkPill.jsx';
 import { Loading, ErrorBox } from '../components/Status.jsx';
+import { JEJU_AREAS } from '../../server/jejuAreas.js'; // 이름 목록만 담긴 파일이라 브라우저에서 써도 안전하다
 
 const fmtDate = (d) => `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}`;
 const won = (n) => (n == null ? '-' : `${n.toLocaleString()}원`);
@@ -18,11 +19,15 @@ function Weather() {
     <section className="card-soft p-4 mb-4">
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h4 className="mb-0"><i className="bi bi-cloud-sun me-2 text-warning" />수확 일정 (기상청 단기예보)</h4>
-        <div className="btn-group">
-          {['제주시', '서귀포시'].map((p) => (
-            <button key={p} className={`btn btn-sm ${place === p ? 'btn-leaf' : 'btn-outline-secondary'}`} onClick={() => setPlace(p)}>{p}</button>
+        <select className="form-select form-select-sm w-auto" value={place} onChange={(e) => setPlace(e.target.value)} aria-label="지역 선택">
+          <option value="제주시">제주시 (전체)</option>
+          <option value="서귀포시">서귀포시 (전체)</option>
+          {Object.entries(JEJU_AREAS).map(([city, list]) => (
+            <optgroup key={city} label={`${city} 읍·면·동`}>
+              {list.map((a) => <option key={a} value={a}>{a}</option>)}
+            </optgroup>
           ))}
-        </div>
+        </select>
       </div>
       {state.loading && <Loading />}
       {state.error && <ErrorBox message={state.error} />}
@@ -38,7 +43,7 @@ function Weather() {
               </div>
             ))}
           </div>
-          <p className="notice mt-2 mb-0">비가 오면 수확은 못 하고 천막 안 포장 작업만 합니다. 강수확률 60% 이상이면 비로 봅니다. 기온의 ?는 기상청이 값을 주지 않은 경우입니다.</p>
+          <p className="notice mt-2 mb-0">비가 오면 수확은 못 하고 천막 안 포장 작업만 합니다. 강수확률 60% 이상이면 비로 봅니다. 기온의 ?는 기상청이 값을 주지 않은 경우입니다. 예보는 5km 격자 단위라 이웃한 동은 같은 값이 나올 수 있습니다.</p>
         </>
       )}
     </section>

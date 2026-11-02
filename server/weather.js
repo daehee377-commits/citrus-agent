@@ -1,5 +1,9 @@
 // 도구 2: get_weather — 기상청 단기예보(공공데이터포털)로 제주 날짜별 날씨를 가져온다.
 // 장소(제주시/서귀포시)만 다루는 일반 도구다. "수확 가능 여부" 같은 농사 판단은 harvestRules.js 에 따로 있다.
+import { searchPlaces } from './kakaoPlaces.js';
+import { latLngToGrid } from './kmaGrid.js';
+import { AREA_TO_CITY } from './jejuAreas.js';
+
 const BASE = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst';
 const GRID = { '제주시': [53, 38], '서귀포시': [52, 33] }; // 기상청 격자 좌표(nx, ny)
 const PTY = { 0: '없음', 1: '비', 2: '비/눈', 3: '눈', 4: '소나기' };
@@ -17,12 +21,25 @@ function baseDateTime() {
   };
 }
 
+// 읍·면·동 이름 → 격자: 카카오 지도로 좌표를 찾고 기상청 격자로 바꾼다. 같은 이름은 한 번만 찾도록 기억해 둔다.
+const gridCache = new Map();
+async function gridOfArea(place) {
+  if (gridCache.has(place)) return gridCache.get(place);
+  const city = AREA_TO_CITY[place];
+  const [hit] = await searchPlaces({ query: `제주특별자치도 ${city} ${place}`, size: 1 });
+  if (!hit || !String(hit.address).startsWith('제주특별자치도')) throw new Error(`'${place}'의 위치를 지도에서 찾지 못했습니다.`);
+  const grid = latLngToGrid(hit.lat, hit.lng);
+  gridCache.set(place, grid);
+  return grid;
+}
+
+// place: '제주시' · '서귀포시' 또는 제주의 읍·면·동 이름(예: 노형동, 남원읍). 5km 격자 단위 예보라 이웃한 동은 같은 값이 나올 수 있다.
 export async function getWeather({ place = '제주시' } = {}) {
   const key = process.env.DATA_GO_KR_KEY;
   if (!key) throw new Error('공공데이터포털 키가 없습니다. .env.local 의 DATA_GO_KR_KEY 를 확인해 주세요.');
-  if (!GRID[place]) // 모르는 장소를 제주시 날씨로 몰래 바꿔 돌려주면 잘못된 정보가 되므로 오류로 알린다
-    throw new Error(`날씨는 ${Object.keys(GRID).join('·')}만 조회할 수 있습니다. ('${place}'는 지원하지 않습니다)`);
-  const [nx, ny] = GRID[place];
+  if (!GRID[place] && !AREA_TO_CITY[place]) // 모르는 장소를 제주시 날씨로 몰래 바꿔 돌려주면 잘못된 정보가 되므로 오류로 알린다
+    throw new Error(`날씨는 제주시·서귀포시와 제주의 읍·면·동만 조회할 수 있습니다. ('${place}'는 지원하지 않습니다)`);
+  const [nx, ny] = GRID[place] ?? (await gridOfArea(place));
   const params = new URLSearchParams({
     serviceKey: key, dataType: 'JSON', numOfRows: '1000', pageNo: '1',
     nx: String(nx), ny: String(ny), ...baseDateTime(),

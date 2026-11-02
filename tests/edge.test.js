@@ -91,7 +91,10 @@ process.exitCode = fail ? 1 : 0;
     ['제주시에서 로컬 식재료를 쓰는 식당 중 감귤 납품 가능성이 높은 곳은?', '(없음)'],
   ];
   for (const [q, want] of cases) ok(`질문 분류: ${q.slice(0, 22)}…`, names(q) === want, `나온 값 ${names(q)}`);
-  ok('남원읍 수확 질문은 서귀포시 날씨', detectIntents('남원읍 수확 언제 해?')[0]?.args.place === '서귀포시');
+  ok('남원읍 수확 질문은 남원읍 날씨', detectIntents('남원읍 수확 언제 해?')[0]?.args.place === '남원읍');
+  ok('노형동 비 질문은 노형동 날씨', detectIntents('노형동 내일 비 와?')[0]?.args.place === '노형동');
+  ok('서귀포 수확 질문은 서귀포시 날씨', detectIntents('서귀포 수확 언제 해?')[0]?.args.place === '서귀포시');
+  ok('지역 없는 수확 질문은 제주시 기준', detectIntents('수확 언제 해?')[0]?.args.place === '제주시');
   console.log(`\n(분류 포함) 결과: 통과 ${pass} / 실패 ${fail}`);
   process.exitCode = fail ? 1 : 0;
 }
