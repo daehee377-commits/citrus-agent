@@ -23,6 +23,7 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
 
   const called = [];
   let calls = 0;
+  let nudged = false;
 
   // 날씨·시세처럼 질문만 보고 도구가 분명한 경우는 서버가 먼저 조회해서 질문 뒤에 붙여 준다
   const pre = [];
@@ -36,6 +37,7 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
 
   while (true) {
     const overLimit = calls >= LIMITS.maxToolCalls;
+    if (overLimit && !nudged) { nudged = true; messages.push(new HumanMessage('도구 호출 한도에 도달했습니다. 더 이상 도구를 호출할 수 없습니다. 지금까지 조회한 결과만으로 최종 답변을 한국어로 작성하세요. 확인되지 않은 정보는 "확인 필요"로 표시하세요.')); }
     const res = await (overLimit ? model : withTools).invoke(messages); // 한도를 넘으면 도구 없이 지금까지 모은 것으로 답하게 한다
     const toolCalls = overLimit ? [] : res.tool_calls ?? [];
     if (!toolCalls.length) {
