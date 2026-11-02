@@ -7,6 +7,7 @@ import { searchBlogReviews } from '../server/blogReviews.js';
 import { getTravelTime } from '../server/osrm.js';
 import { getWeather } from '../server/weather.js';
 import { getMarketPrice } from '../server/marketPrice.js';
+import { getRetailPrice } from '../server/retailPrice.js';
 import { getPestInfo } from '../server/pestInfo.js';
 import { getDeliveryGuide } from '../server/deliveryGuide.js';
 import { getRegionMode } from '../server/regionMode.js';
@@ -82,6 +83,12 @@ export const getMarketPriceTool = tool(safe(async () => getMarketPrice()), {
 });
 
 // 사진 주소는 화면용이라 AI 에게는 주지 않는다 (글자 수만 늘어난다)
+export const getRetailPriceTool = tool(safe(async () => getRetailPrice()), {
+  name: 'get_retail_price',
+  description: '감귤(노지) 소비자가(소매점 판매가)를 제주와 전국 평균으로 알려 준다(KAMIS, 원/10개 단위, 직전 조사일 대비). 도매 시세와 다르며 유기농 가격은 아니다.',
+  schema: z.object({}),
+});
+
 export const getPestInfoTool = tool(safe(async ({ name }) => { const { items, images, ...text } = await getPestInfo({ crop: '감귤', name }); return text; }), {
   name: 'get_pest_info',
   description: '감귤에 발생하는 병 목록을 보거나, 병 이름을 주면 증상·발생 조건·방제 방법을 알려 준다. name 을 비우면 병 목록을 준다.',
@@ -97,5 +104,5 @@ export const getDeliveryGuideTool = tool(safe(async ({ region, size }) => getDel
   }),
 });
 
-export const tools = [searchPlacesTool, searchBlogReviewsTool, getTravelTimeTool, getWeatherTool, getMarketPriceTool, getPestInfoTool, getDeliveryGuideTool];
+export const tools = [searchPlacesTool, searchBlogReviewsTool, getTravelTimeTool, getWeatherTool, getMarketPriceTool, getRetailPriceTool, getPestInfoTool, getDeliveryGuideTool];
 export const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));

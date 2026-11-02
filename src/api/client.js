@@ -8,6 +8,7 @@ async function getJson(url) {
 
 export const fetchWeather = (place) => getJson(`/api/weather?place=${encodeURIComponent(place)}`);
 export const fetchPrice = () => getJson('/api/price');
+export const fetchRetail = () => getJson('/api/retail');
 export const fetchPest = (name = '') => getJson(`/api/pest?name=${encodeURIComponent(name)}`);
 
 // 채팅: 서버가 줄 단위 JSON 으로 "도구 호출 중" 알림과 최종 답을 흘려 보낸다

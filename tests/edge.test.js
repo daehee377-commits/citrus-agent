@@ -1,10 +1,11 @@
 // 오류·경계 상황 점검: npm run test:edge  (가짜 응답을 쓰므로 키·네트워크·호출 한도를 쓰지 않는다)
-Object.assign(process.env, { DATA_GO_KR_KEY: 'dummy', KAKAO_REST_KEY: 'dummy', NCPMS_API_KEY: 'dummy' });
+Object.assign(process.env, { DATA_GO_KR_KEY: 'dummy', KAKAO_REST_KEY: 'dummy', NCPMS_API_KEY: 'dummy', KAMIS_API_KEY: 'dummy', KAMIS_API_ID: '1' });
 const { searchPlaces } = await import('../server/kakaoPlaces.js');
 const { searchBlogReviews } = await import('../server/blogReviews.js');
 const { getTravelTime } = await import('../server/osrm.js');
 const { getWeather } = await import('../server/weather.js');
 const { getMarketPrice } = await import('../server/marketPrice.js');
+const { getRetailPrice } = await import('../server/retailPrice.js');
 const { getPestInfo } = await import('../server/pestInfo.js');
 const { judgeHarvestDay } = await import('../server/harvestRules.js');
 const { findCitrusEvidence } = await import('../server/citrusEvidence.js');
@@ -39,6 +40,10 @@ ok('기상청 빈 응답은 빈 배열', JSON.stringify(await getWeather({ place
 // 3) 시세: 자료가 전혀 없을 때, 휴장일 건너뛰기
 mock(200, { response: { header: { resultCode: '0' }, body: { items: { item: [] } } } });
 ok('시세 10일간 자료 없음', (await msg(() => getMarketPrice())).includes('찾지 못했습니다'));
+mock(200, '{"data":{"error_code":"001"}}'); ok('소비자가 자료 없음(001)', (await msg(() => getRetailPrice())).includes('자료가 없습니다'));
+mock(200, '{"data":{"error_code":"200"}}'); ok('소비자가 인증 거절', (await msg(() => getRetailPrice())).includes('거절'));
+mock(200, JSON.stringify({ data: { error_code: '000', item: [{ countyname: '평균', price: '5,000', regday: '11/01' }, { countyname: '평균', price: '5,200', regday: '11/02' }, { countyname: '서귀포', price: '9,999', regday: '11/02' }] } }));
+{ const r = await getRetailPrice(); ok('소비자가 평균만 쓰고 변화 계산', r.jeju.latest.price === 5200 && r.jeju.diff === 200); }
 mock(200, 'html 오류 페이지'); ok('시세 비JSON 응답', (await msg(() => getMarketPrice())).includes('읽지 못했습니다'));
 
 // 4) 병해충: XML 아닌 응답, 키 없음

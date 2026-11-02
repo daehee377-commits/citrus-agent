@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchWeather, fetchPrice, fetchPest } from '../api/client.js';
+import { fetchWeather, fetchPrice, fetchRetail, fetchPest } from '../api/client.js';
 import WeatherCard from '../components/WeatherCard.jsx';
 import ItemCard from '../components/ItemCard.jsx';
 import { Loading, ErrorBox } from '../components/Status.jsx';
@@ -80,6 +80,41 @@ function Price() {
   );
 }
 
+function Retail() {
+  const [state, setState] = useState({ loading: true });
+  useEffect(() => { fetchRetail().then((r) => setState({ data: r })).catch((e) => setState({ error: e.message })); }, []);
+  const d = state.data;
+  const diff = (x) => (x.diff == null ? '-' : `${x.diff > 0 ? '+' : ''}${x.diff.toLocaleString()}원`);
+  return (
+    <section className="card-soft p-4 mb-4">
+      <h4><i className="bi bi-shop me-2 text-warning" />소비자가 (KAMIS 소매가격)</h4>
+      {state.loading && <Loading />}
+      {state.error && <ErrorBox message={state.error} />}
+      {d && (
+        <>
+          <p className="notice">{d.item} · 단위 {d.unit}</p>
+          <div className="table-responsive">
+            <table className="table align-middle mb-2">
+              <thead><tr><th>지역</th><th className="text-end">최근 조사일</th><th className="text-end">가격</th><th className="text-end">직전 조사일 대비</th></tr></thead>
+              <tbody>
+                {[['제주', d.jeju], ['전국 평균', d.nation]].map(([name, x]) => (
+                  <tr key={name}>
+                    <td className="fw-bold">{name}</td>
+                    <td className="text-end">{x.latest?.date ?? '-'}</td>
+                    <td className="text-end">{won(x.latest?.price)}</td>
+                    <td className={`text-end ${x.diff > 0 ? 'text-danger' : 'text-primary'}`}>{diff(x)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="notice mb-0">{d.note} 출처: {d.source}</p>
+        </>
+      )}
+    </section>
+  );
+}
+
 function Pest() {
   const [list, setList] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -148,7 +183,7 @@ function References() {
   return (
     <section className="card-soft p-4 mb-4">
       <h4><i className="bi bi-box-arrow-up-right me-2 text-warning" />제주 농업 공식 정보 바로가기</h4>
-      <p className="notice">제주농업기술원(제주농업디지털통합정보서비스)과 제주감귤연합회의 공식 페이지로 이동합니다. 소비자 가격과 유기농 시세처럼 이 앱에 없는 정보는 그곳에서 확인하세요.</p>
+      <p className="notice">제주농업기술원(제주농업디지털통합정보서비스)과 제주감귤연합회의 공식 페이지로 이동합니다. 유기농 시세처럼 이 앱에 없는 정보는 그곳에서 확인하세요.</p>
       <div className="rgrid">
         {REFERENCES.map(([title, desc, url, icon]) => (
           <ItemCard key={title} variant="link" icon={icon} title={title} subtitle={desc} href={url} />
@@ -167,6 +202,7 @@ export default function Today() {
       </div>
       <Weather />
       <Price />
+      <Retail />
       <Pest />
       <References />
     </>

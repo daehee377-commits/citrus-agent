@@ -14,7 +14,7 @@ export function detectIntents(question) {
   const out = [];
   const wantsWeather = WEATHER.test(q) && !OTHER_TOPIC.test(q);
   if (wantsWeather) out.push({ name: 'get_weather', args: { place: weatherPlace(q) } });
-  if (MARKET.test(q) && !/(카페|식당|펜션|마켓|매장|문자|택배|배송|병|방제)/.test(q)) out.push({ name: 'get_market_price', args: {} });
+  if (MARKET.test(q) && !/(카페|식당|펜션|마켓|매장|문자|택배|배송|병|방제)/.test(q)) { out.push({ name: 'get_market_price', args: {} }); if (/(소비자|소매|마트|시중|판매가)/.test(q)) out.push({ name: 'get_retail_price', args: {} }); }
   return out;
 }
 
