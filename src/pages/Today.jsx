@@ -131,8 +131,10 @@ function Pest() {
 export default function Today() {
   return (
     <>
-      <h2 className="mb-1">오늘 현황</h2>
-      <p className="notice mb-4">날씨·시세·병해충을 공공 데이터로 직접 확인합니다.</p>
+      <div className="banner-photo">
+        <h2>오늘 현황</h2>
+        <p className="notice mb-0">날씨·시세·병해충을 공공 데이터로 직접 확인합니다.</p>
+      </div>
       <Weather />
       <Price />
       <Pest />

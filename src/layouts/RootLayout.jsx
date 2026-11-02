@@ -22,7 +22,7 @@ export default function RootLayout() {
         <Outlet />
       </main>
       <footer className="container pb-4 notice">
-        제주대 청년도약 부트캠프 개인 프로젝트 · 점수와 시세는 참고용이며 실제 거래 전 직접 확인하세요.
+        제주대 청년도약 부트캠프 개인 프로젝트 · 점수와 시세는 참고용이며 실제 거래 전 직접 확인하세요. · 사진 출처: <a href="https://pixabay.com" target="_blank" rel="noreferrer noopener">Pixabay</a> (Pixabay Content License)
       </footer>
     </>
   );
