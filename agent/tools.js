@@ -85,7 +85,7 @@ export const getMarketPriceTool = tool(safe(async () => getMarketPrice()), {
 // 사진 주소는 화면용이라 AI 에게는 주지 않는다 (글자 수만 늘어난다)
 export const getRetailPriceTool = tool(safe(async () => getRetailPrice()), {
   name: 'get_retail_price',
-  description: '감귤(노지) 소비자가(소매점 판매가)를 제주와 전국 평균으로 알려 준다(KAMIS, 원/10개 단위, 직전 조사일 대비). 도매 시세와 다르며 유기농 가격은 아니다.',
+  description: '감귤(노지) 소비자가(소매점 판매가)를 제주와 전국 평균으로 알려 준다(KAMIS, 원/10개 단위, 직전 조사일 대비). 사용자가 소비자가·소매·마트 가격을 직접 물을 때만 부른다. 도매 시세와 다르며 유기농 가격은 아니다.',
   schema: z.object({}),
 });
 

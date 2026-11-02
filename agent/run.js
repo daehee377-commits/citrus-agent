@@ -4,9 +4,28 @@ import { tools, toolsByName } from './tools.js';
 import { createModel, LIMITS } from './model.js';
 import { SYSTEM_PROMPT } from '../topics/citrus.js';
 import { detectIntents } from './router.js';
+import { findAreaIn } from '../server/jejuAreas.js';
 
 // 모델 응답 content 는 글자이거나 조각 배열일 수 있어 글자로 통일한다
 const text = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((p) => p.text ?? '').join('') : String(c ?? ''));
+
+const TRAVEL_ASKED = /(이동시간|걸리는 시간|얼마나 걸|소요시간)/;
+// 이동시간을 물으면 모델이 후기 확인에 호출을 다 써 버리는 일이 있어, 제주 후보 2곳의 이동시간은 서버가 직접 계산해 붙여 준다
+async function travelTimes(out, q, onTool, onResult, count) {
+  const origin = q.match(/([가-힣]+(?:시청|공항|터미널|역|읍|면|동))에서/)?.[1] ?? findAreaIn(q); // "○○에서 출발" 표현을 먼저 보고, 없을 때만 질문 속 지명을 쓴다
+  if (!origin) return '';
+  let list; try { list = JSON.parse(out); } catch { return ''; }
+  const near = list.filter((p) => p?.lat && p?.lng && p.regionMode === '방문 모드').slice(0, 2);
+  if (!near.length) return '';
+  count(); onTool('get_travel_time', { originText: origin });
+  const lines = [];
+  for (const p of near) lines.push(`${p.name}: ${await toolsByName.get_travel_time.invoke({ originText: origin, toLat: p.lat, toLng: p.lng })}`);
+  const body = lines.join('\n');
+  onResult('get_travel_time', body);
+  return `\n[서버가 계산한 자동차 이동시간(${origin} 출발)]\n${body}`;
+}
+
+const RETAIL_ASKED = /(소비자|소매|마트|시중|판매가)/;
 
 export async function runAgent({ question, history = [], onTool = () => {}, onResult = () => {} }) {
   const q = String(question ?? '').trim();
@@ -50,6 +69,7 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
     }
     messages.push(res);
     for (const tc of toolCalls) {
+      if (tc.name === 'get_retail_price' && !RETAIL_ASKED.test(q)) { messages.push(new ToolMessage({ content: '{"skipped":"사용자가 소비자가를 묻지 않아 조회하지 않았습니다. 도매 시세로만 답하세요."}', tool_call_id: tc.id, name: tc.name })); continue; } // 호출 횟수를 아끼기 위해 묻지 않은 소비자가는 건너뛴다
       if (calls >= LIMITS.maxToolCalls) { messages.push(new ToolMessage({ content: '{"error":"도구 호출 한도(5번)를 넘었습니다."}', tool_call_id: tc.id, name: tc.name })); continue; }
       calls += 1;
       called.push(tc.name);
@@ -57,7 +77,9 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
       const t = toolsByName[tc.name];
       const out = t ? await t.invoke(tc.args) : '{"error":"알 수 없는 도구입니다."}';
       onResult(tc.name, String(out)); // 도구 결과를 서버가 가공해 화면에 보낼 수 있게 한다 (예: 저장 후보 버튼)
-      messages.push(new ToolMessage({ content: String(out).slice(0, 12000), tool_call_id: tc.id, name: tc.name }));
+      let content = String(out).slice(0, 12000);
+      if (tc.name === 'search_places' && TRAVEL_ASKED.test(q) && calls < LIMITS.maxToolCalls) content += await travelTimes(out, q, onTool, onResult, () => { calls += 1; called.push('get_travel_time'); });
+      messages.push(new ToolMessage({ content, tool_call_id: tc.id, name: tc.name }));
     }
   }
 }
