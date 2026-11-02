@@ -27,20 +27,24 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   const send = (o) => res.write(JSON.stringify(o) + '\n');
+  const calls = []; // 호출 내역: { name, arg, count }
+  const brief = (a = {}) => String(a.query ?? a.placeName ?? a.name ?? a.place ?? a.region ?? '').slice(0, 24); // originText 같은 개인정보성 값은 보여 주지 않는다
+  const countOf = (out) => { try { const j = JSON.parse(out); return Array.isArray(j) ? j.length : Array.isArray(j.days) ? j.days.length : Array.isArray(j.items) ? j.items.length : Array.isArray(j.diseases) ? j.diseases.length : Array.isArray(j.reviews) ? j.reviews.length : null; } catch { return null; } };
   const places = new Map(); // 저장 버튼용 후보: 장소명·방문/배송 구분·규모만 보낸다 (주소·전화번호는 보내지 않는다)
   try {
     const r = await runAgent({
       question: q,
       history: Array.isArray(history) ? history : [],
-      onTool: (name) => send({ type: 'tool', name }),
+      onTool: (name, args) => { calls.push({ name, arg: brief(args), count: null }); send({ type: 'tool', name, arg: brief(args) }); },
       onResult: (name, out) => {
+        const last = [...calls].reverse().find((x) => x.name === name && x.count === null); if (last) last.count = countOf(out);
         if (name !== 'search_places') return;
         try {
           for (const p of JSON.parse(out)) if (p?.name && places.size < 10) places.set(p.name, { name: p.name, mode: p.regionMode ?? '확인 필요', size: p.buyerSize ?? '확인 필요' });
         } catch { /* 오류 응답이면 후보 없음 */ }
       },
     });
-    send({ type: 'answer', answer: r.answer, toolCalls: r.toolCalls, remaining: limit.remaining, places: [...places.values()] });
+    send({ type: 'answer', answer: r.answer, toolCalls: r.toolCalls, calls, remaining: limit.remaining, places: [...places.values()] });
   } catch (e) {
     send({ type: 'error', message: friendly(e) });
   }

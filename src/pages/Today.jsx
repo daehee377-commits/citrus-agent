@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchWeather, fetchPrice, fetchPest } from '../api/client.js';
 import WeatherCard from '../components/WeatherCard.jsx';
+import ItemCard from '../components/ItemCard.jsx';
 import { Loading, ErrorBox } from '../components/Status.jsx';
 import { JEJU_AREAS } from '../../server/jejuAreas.js'; // 이름 목록만 담긴 파일이라 브라우저에서 써도 안전하다
 
@@ -150,10 +151,7 @@ function References() {
       <p className="notice">제주농업기술원(제주농업디지털통합정보서비스)과 제주감귤연합회의 공식 페이지로 이동합니다. 소비자 가격과 유기농 시세처럼 이 앱에 없는 정보는 그곳에서 확인하세요.</p>
       <div className="rgrid">
         {REFERENCES.map(([title, desc, url, icon]) => (
-          <a key={title} href={url} target="_blank" rel="noreferrer noopener" className="rlink">
-            <i className={`bi bi-${icon}`} />
-            <span><strong>{title}</strong><small>{desc}</small></span>
-          </a>
+          <ItemCard key={title} variant="link" icon={icon} title={title} subtitle={desc} href={url} />
         ))}
       </div>
     </section>

@@ -27,7 +27,7 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
   // 날씨·시세처럼 질문만 보고 도구가 분명한 경우는 서버가 먼저 조회해서 질문 뒤에 붙여 준다
   const pre = [];
   for (const it of detectIntents(q)) {
-    calls += 1; called.push(it.name); onTool(it.name);
+    calls += 1; called.push(it.name); onTool(it.name, it.args);
     const out = String(await toolsByName[it.name].invoke(it.args));
     onResult(it.name, out);
     pre.push(`[서버가 미리 조회한 ${it.name} 결과]\n${out.slice(0, 6000)}`);
@@ -47,7 +47,7 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
       if (calls >= LIMITS.maxToolCalls) { messages.push(new ToolMessage({ content: '{"error":"도구 호출 한도(5번)를 넘었습니다."}', tool_call_id: tc.id, name: tc.name })); continue; }
       calls += 1;
       called.push(tc.name);
-      onTool(tc.name); // 화면에 "도구 호출 중: 이름" 을 보여 주기 위한 알림
+      onTool(tc.name, tc.args); // 화면에 "도구 호출 중: 이름" 을 보여 주기 위한 알림
       const t = toolsByName[tc.name];
       const out = t ? await t.invoke(tc.args) : '{"error":"알 수 없는 도구입니다."}';
       onResult(tc.name, String(out)); // 도구 결과를 서버가 가공해 화면에 보낼 수 있게 한다 (예: 저장 후보 버튼)

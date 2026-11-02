@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore.js';
 import { supabaseReady, listFavorites, removeFavorite } from '../lib/supabase.js';
 import { Loading, ErrorBox } from '../components/Status.jsx';
+import ItemCard from '../components/ItemCard.jsx';
 
 export default function Saved() {
   const sessionId = useAppStore((s) => s.sessionId);
@@ -38,16 +39,8 @@ export default function Saved() {
         <div className="row g-3">
           {rows.map((r) => (
             <div className="col-md-6" key={r.id}>
-              <div className="card-soft p-3 d-flex justify-content-between align-items-center">
-                <div>
-                  <div className="fw-bold">{r.place_name}</div>
-                  <div className="notice">
-                    <span className={`pill ${r.mode === '방문 모드' ? 'pill-ok' : 'pill-rain'} me-1`}>{r.mode}</span>
-                    <span className="pill pill-unknown">{r.size}</span>
-                  </div>
-                </div>
-                <button className="btn btn-sm btn-outline-secondary" onClick={() => remove(r.id)} title="삭제"><i className="bi bi-trash" /></button>
-              </div>
+              <ItemCard title={r.place_name} badges={[[r.mode, r.mode === '방문 모드' ? 'pill-ok' : 'pill-rain'], [r.size, 'pill-unknown']]}
+                action={<button className="btn btn-sm btn-outline-secondary" onClick={() => remove(r.id)} title="삭제"><i className="bi bi-trash" /></button>} />
             </div>
           ))}
         </div>

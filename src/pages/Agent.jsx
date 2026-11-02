@@ -67,7 +67,7 @@ export default function Agent() {
         question, history, sessionId,
         onEvent: (e) => {
           if (e.type === 'tool') setLiveTools((t) => [...t, e.name]);
-          if (e.type === 'answer') { addMessage({ role: 'assistant', content: e.answer, tools: e.toolCalls, places: e.places }); setRemaining(e.remaining); }
+          if (e.type === 'answer') { addMessage({ role: 'assistant', content: e.answer, tools: e.toolCalls, calls: e.calls, places: e.places }); setRemaining(e.remaining); }
           if (e.type === 'error') addMessage({ role: 'assistant', content: e.message, isError: true });
         },
       });
@@ -109,7 +109,7 @@ export default function Agent() {
                 {m.tools?.length > 0 && (
                   <div className="mb-2 d-flex flex-wrap gap-1">
                     <span className="notice me-1">호출한 도구</span>
-                    {m.tools.map((t, j) => <span key={j} className="pill pill-tool"><i className="bi bi-tools" />{TOOL_LABEL[t] ?? t}</span>)}
+                    {(m.calls?.length ? m.calls : m.tools.map((t) => ({ name: t }))).map((c, j) => <span key={j} className="pill pill-tool"><i className="bi bi-tools" />{TOOL_LABEL[c.name] ?? c.name}{c.arg ? ` · ${c.arg}` : ''}{c.count != null ? ` → ${c.count}건` : ''}</span>)}
                   </div>
                 )}
                 {m.isError ? <div className="text-danger"><i className="bi bi-exclamation-circle me-1" />{m.content}</div> : (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchWeather } from '../api/client.js';
 import WorkPill from '../components/WorkPill.jsx';
+import ItemCard from '../components/ItemCard.jsx';
 
 const fmtDate = (d) => `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}`;
 
@@ -38,13 +39,7 @@ export default function Home() {
           ['citrus-7.jpg', '제주는 방문, 서울은 택배', '구매처 주소를 보고 샘플 전달 방문과 택배 발송 방식을 자동으로 나눠 제안해요.'],
         ].map(([img, title, desc]) => (
           <div className="col-md-4" key={title}>
-            <div className="card-soft h-100 overflow-hidden">
-              <img src={`/images/${img}`} alt="" className="card-photo" loading="lazy" />
-              <div className="p-4">
-                <h5>{title}</h5>
-                <p className="notice mb-0">{desc}</p>
-              </div>
-            </div>
+            <ItemCard variant="photo" image={`/images/${img}`} title={title} subtitle={desc} />
           </div>
         ))}
       </div>
