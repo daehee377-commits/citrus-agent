@@ -73,3 +73,25 @@ ok('농협 하나로마트 → 대량', getBuyerType('가정,생활 > 마트 > �
 
 console.log(`\n결과: 통과 ${pass} / 실패 ${fail}`);
 process.exitCode = fail ? 1 : 0;
+
+// 9) 질문 → 미리 조회할 도구 (확실한 질문만 서버가 먼저 조회, 나머지는 AI가 고른다)
+{
+  const { detectIntents } = await import('../agent/router.js');
+  const names = (q) => detectIntents(q).map((i) => i.name).join(',') || '(없음)';
+  const cases = [
+    ['이번 주 수확 가능한 날이 언제야?', 'get_weather'],
+    ['내일 비 와? 귤 따도 돼?', 'get_weather'],
+    ['요즘 감귤 시세 어때?', 'get_market_price'],
+    ['이번 주 수확하고 가격은 얼마야?', 'get_weather,get_market_price'],
+    ['서귀포 근처에서 감귤을 직거래할 만한 카페나 펜션 알려줘', '(없음)'],
+    ['내일 방문할 카페 알려줘', '(없음)'],
+    ['서울 성수동 카페 중 감귤을 택배로 보내볼 만한 곳은?', '(없음)'],
+    ['궤양병은 어떻게 방제해?', '(없음)'],
+    ['체험농장이나 로컬푸드 매장 중 남원읍에서 가까운 곳 순서대로 알려줘', '(없음)'],
+    ['제주시에서 로컬 식재료를 쓰는 식당 중 감귤 납품 가능성이 높은 곳은?', '(없음)'],
+  ];
+  for (const [q, want] of cases) ok(`질문 분류: ${q.slice(0, 22)}…`, names(q) === want, `나온 값 ${names(q)}`);
+  ok('남원읍 수확 질문은 서귀포시 날씨', detectIntents('남원읍 수확 언제 해?')[0]?.args.place === '서귀포시');
+  console.log(`\n(분류 포함) 결과: 통과 ${pass} / 실패 ${fail}`);
+  process.exitCode = fail ? 1 : 0;
+}

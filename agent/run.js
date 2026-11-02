@@ -3,6 +3,7 @@ import { SystemMessage, HumanMessage, AIMessage, ToolMessage } from '@langchain/
 import { tools, toolsByName } from './tools.js';
 import { createModel, LIMITS } from './model.js';
 import { SYSTEM_PROMPT } from '../topics/citrus.js';
+import { detectIntents } from './router.js';
 
 // 모델 응답 content 는 글자이거나 조각 배열일 수 있어 글자로 통일한다
 const text = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((p) => p.text ?? '').join('') : String(c ?? ''));
@@ -22,6 +23,17 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
 
   const called = [];
   let calls = 0;
+
+  // 날씨·시세처럼 질문만 보고 도구가 분명한 경우는 서버가 먼저 조회해서 질문 뒤에 붙여 준다
+  const pre = [];
+  for (const it of detectIntents(q)) {
+    calls += 1; called.push(it.name); onTool(it.name);
+    const out = String(await toolsByName[it.name].invoke(it.args));
+    onResult(it.name, out);
+    pre.push(`[서버가 미리 조회한 ${it.name} 결과]\n${out.slice(0, 6000)}`);
+  }
+  if (pre.length) messages[messages.length - 1] = new HumanMessage(`${q}\n\n${pre.join('\n\n')}\n(위 결과로 답하고, 같은 도구를 다시 부르지 않는다.)`);
+
   while (true) {
     const overLimit = calls >= LIMITS.maxToolCalls;
     const res = await (overLimit ? model : withTools).invoke(messages); // 한도를 넘으면 도구 없이 지금까지 모은 것으로 답하게 한다
