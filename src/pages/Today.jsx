@@ -133,6 +133,33 @@ function Pest() {
   );
 }
 
+// 더 자세한 제주 현장 정보는 공식 사이트로 연결한다 (자료를 가져오지 않고 링크만 건다)
+const REFERENCES = [
+  ['병해충 예보', '제주 지역 병해충 발생 예보', 'https://agri.jeju.go.kr/jadx/web/agri/frcstDip.do', 'bug'],
+  ['주간 병해충 동향', '제주농업기술원 예찰 결과', 'https://agri.jeju.go.kr/jadx/web/agriBbs/agriInfo/cropTrailList.do', 'clipboard-data'],
+  ['서리 정보', '서리 위험 기상 정보', 'https://agri.jeju.go.kr/jadx/web/weather/frostWeather.do', 'snow'],
+  ['감귤 영농 정보', '재배·관리 소식', 'https://agri.jeju.go.kr/jadx/web/agriBbs/agriInfo/citrusList.do', 'flower1'],
+  ['주간 영농 동향', '이번 주 영농 소식', 'https://agri.jeju.go.kr/jadx/web/agriBbs/agriInfo/trendList.do', 'calendar-week'],
+  ['감귤 통계', '재배면적·생산량·조수입', 'http://jejugamgyul.or.kr/story/story06.asp?scrID=0000000133&pageNum=5&subNum=5&ssubNum=1', 'bar-chart'],
+];
+
+function References() {
+  return (
+    <section className="card-soft p-4 mb-4">
+      <h4><i className="bi bi-box-arrow-up-right me-2 text-warning" />제주 농업 공식 정보 바로가기</h4>
+      <p className="notice">제주농업기술원(제주농업디지털통합정보서비스)과 제주감귤연합회의 공식 페이지로 이동합니다. 소비자 가격과 유기농 시세처럼 이 앱에 없는 정보는 그곳에서 확인하세요.</p>
+      <div className="rgrid">
+        {REFERENCES.map(([title, desc, url, icon]) => (
+          <a key={title} href={url} target="_blank" rel="noreferrer noopener" className="rlink">
+            <i className={`bi bi-${icon}`} />
+            <span><strong>{title}</strong><small>{desc}</small></span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Today() {
   return (
     <>
@@ -143,6 +170,7 @@ export default function Today() {
       <Weather />
       <Price />
       <Pest />
+      <References />
     </>
   );
 }
