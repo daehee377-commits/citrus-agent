@@ -50,6 +50,7 @@
 
 ## 6. 기술 구조 (현재 상태)
 - 배포: https://citrus-agent.vercel.app (Vercel, 서울 리전) / 코드: GitHub 비공개 저장소
+- 주문 현황판: Supabase citrus_orders (별칭·방문/택배·상자 수·상태·택배사 이름만, 개인정보 칸 없음, 13개 시험 통과)
 - 저장: Supabase citrus_favorites (세션별 RLS, 12개 시험 통과) — 배포 사이트에서 저장·새로고침 유지·삭제 확인
 - 질문 분류: 수확·날씨·시세처럼 분명한 질문은 서버가 도구를 먼저 조회 (agent/router.js)
 
