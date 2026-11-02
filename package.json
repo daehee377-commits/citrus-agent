@@ -18,7 +18,8 @@
     "test:agent": "node --env-file=.env.local tests/agent.test.js",
     "test:supabase": "node --env-file=.env.local tests/supabase.test.js",
     "images": "node --env-file=.env.local scripts/fetch-images.mjs && node scripts/download-images.mjs",
-    "test:orders": "node --env-file=.env.local tests/orders.test.js"
+    "test:orders": "node --env-file=.env.local tests/orders.test.js",
+    "test:sheet": "node tests/orderSheet.test.js"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.6.0",
@@ -35,6 +36,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.5",
     "three": "^0.187.0",
+    "write-excel-file": "^4.1.1",
     "zod": "^4.6.7",
     "zustand": "^5.0.16"
   },

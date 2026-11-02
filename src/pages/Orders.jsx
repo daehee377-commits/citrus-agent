@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { supabaseReady, listOrders, addOrder, updateOrder, removeOrder } from '../lib/supabase.js';
 import { Loading, ErrorBox } from '../components/Status.jsx';
+import { buildOrderSheet, sheetFileName } from '../lib/orderSheet.js';
 
 const STEPS = ['문의', '협의', '발송 준비', '발송', '완료'];
 const CARRIERS = ['미정', '우체국', 'CJ대한통운', '한진', '롯데', '로젠'];
@@ -23,6 +24,7 @@ export default function Orders() {
   }, [sessionId]);
 
   const live = useMemo(() => (rows ?? []).filter((r) => r.status !== '취소'), [rows]);
+  const sheetCount = useMemo(() => buildOrderSheet(rows).count, [rows]);
   const summary = useMemo(() => ({
     boxes: live.reduce((a, r) => a + r.qty, 0),
     prep: live.filter((r) => r.status === '발송 준비').length,
@@ -54,12 +56,18 @@ export default function Orders() {
   const cancel = (r) => { if (window.confirm(`${r.nick} 주문을 취소할까요? (기록은 남고 합계에서 빠집니다)`)) run(async () => replace(await updateOrder(sessionId, r.id, { status: '취소' }))); };
   const setStatus = (r, status) => run(async () => replace(await updateOrder(sessionId, r.id, { status })));
   const setCarrier = (r, carrier) => run(async () => replace(await updateOrder(sessionId, r.id, { carrier })));
+  // 엑셀 라이브러리는 버튼을 누를 때만 불러온다 (처음 화면이 무거워지지 않게)
+  const exportXlsx = () => run(async () => {
+    const { data, columns } = buildOrderSheet(rows);
+    const { default: writeExcelFile } = await import('write-excel-file/browser');
+    await writeExcelFile(data, { columns }).toFile(sheetFileName());
+  });
   const remove = (r) => { if (window.confirm(`${r.nick} 기록을 완전히 지울까요?`)) run(async () => { await removeOrder(sessionId, r.id); setRows((l) => l.filter((x) => x.id !== r.id)); }); };
 
   return (
     <>
       <h2 className="mb-1">주문 현황판</h2>
-      <p className="notice mb-3">누구에게 몇 상자를 보내는지, 어디까지 진행됐는지만 적습니다. <strong>이름·전화번호·주소·결제 정보는 입력하지 마세요.</strong> 연락처는 휴대폰에 같은 별칭으로 저장해 두고, 이 화면에서는 별칭과 주문 번호로만 구분합니다. 이 브라우저에서만 보입니다.</p>
+      <p className="notice mb-3">누구에게 몇 상자를 보내는지, 어디까지 진행됐는지만 적습니다. <strong>이름·전화번호·주소·결제 정보는 입력하지 마세요.</strong> 연락처는 휴대폰에 같은 별칭으로 저장해 두고, 이 화면에서는 별칭과 주문 번호로만 구분합니다. 택배사에 보낼 때는 아래 "엑셀 저장"으로 내려받은 뒤, 받는 분·연락처·주소는 내 컴퓨터에서 직접 채우세요. 이 브라우저에서만 보입니다.</p>
 
       {!supabaseReady && <ErrorBox message="저장 기능이 아직 연결되지 않았습니다." />}
       {error && <ErrorBox message={error} />}
@@ -87,6 +95,7 @@ export default function Orders() {
             <span className="pill pill-ok"><i className="bi bi-box-seam" />총 {summary.boxes}상자</span>
             <span className="pill pill-rain"><i className="bi bi-truck" />발송 준비 {summary.prep}건</span>
             <span className="pill pill-unknown"><i className="bi bi-telephone" />택배사 연락 필요 {summary.needCarrier}건</span>
+            <button type="button" className="btn btn-sm btn-outline-success ms-auto" disabled={busy || sheetCount === 0} onClick={exportXlsx} title="취소를 뺀 택배 주문을 엑셀 파일로 저장합니다"><i className="bi bi-file-earmark-excel me-1" />택배 접수용 엑셀 저장 ({sheetCount}건)</button>
             {summary.cancelled > 0 && <span className="pill pill-cancel"><i className="bi bi-x-circle" />취소 {summary.cancelled}건</span>}
           </div>
           {rows.length === 0 && <div className="card-soft p-4 text-center"><i className="bi bi-clipboard-check fs-1 text-warning" /><p className="mt-2 mb-0">아직 주문이 없습니다. 위에서 첫 주문을 추가해 보세요.</p></div>}
