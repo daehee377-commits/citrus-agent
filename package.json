@@ -1,0 +1,39 @@
+{
+  "name": "citrus-sales-agent",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "test:osrm": "node tests/osrm.test.js",
+    "test:weather": "node --env-file=.env.local tests/weather.test.js",
+    "test:places": "node --env-file=.env.local tests/kakaoPlaces.test.js",
+    "test:blog": "node --env-file=.env.local tests/blogReviews.test.js",
+    "test:price": "node --env-file=.env.local tests/marketPrice.test.js",
+    "test:region": "node tests/region.test.js",
+    "test:pest": "node --env-file=.env.local tests/pestInfo.test.js",
+    "test:edge": "node tests/edge.test.js",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:agent": "node --env-file=.env.local tests/agent.test.js"
+  },
+  "dependencies": {
+    "@langchain/anthropic": "^1.6.0",
+    "@langchain/core": "^1.3.2",
+    "@langchain/google-genai": "^2.3.4",
+    "@supabase/supabase-js": "^2.118.0",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.2",
+    "fast-xml-parser": "^5.11.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.18.5",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.5"
+  }
+}
