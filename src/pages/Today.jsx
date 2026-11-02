@@ -138,7 +138,7 @@ function Pest() {
           <div className="pgrid mb-3">
             {(list.items ?? list.diseases.map((n) => ({ name: n }))).map((it) => (
               <button key={it.name} className={`pcard ${detail?.name === it.name ? 'is-active' : ''}`} onClick={() => open(it.name)} aria-label={`${it.name} 보기`}>
-                <span className="pthumb"><i className="bi bi-image" />{it.thumb && <img src={it.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}</span>
+                <span className="pthumb"><img className="pph" src="/images/pest-placeholder.svg" alt="" />{it.thumb && <img src={it.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}</span>
                 <span className="pcard-name">{it.name}</span>
               </button>
             ))}
@@ -147,6 +147,7 @@ function Pest() {
           {detail && !busy && (
             <div>
               <h5>{detail.name}</h5>
+              {!detail.images?.length && <img className="pph-wide mb-3" src="/images/pest-placeholder.svg" alt="사진 없음 (그림은 예시 그림입니다)" />}
               {detail.images?.length > 0 && (
                 <div className="pgallery mb-3">
                   {detail.images.map((im, i) => (
