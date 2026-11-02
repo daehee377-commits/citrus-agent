@@ -39,7 +39,11 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
     const res = await (overLimit ? model : withTools).invoke(messages); // 한도를 넘으면 도구 없이 지금까지 모은 것으로 답하게 한다
     const toolCalls = overLimit ? [] : res.tool_calls ?? [];
     if (!toolCalls.length) {
-      const answer = text(res.content).trim();
+      let answer = text(res.content).trim();
+      if (!answer) { // 모델이 빈 답을 주면 모은 결과로 답하라고 한 번만 다시 요청한다
+        const retry = await model.invoke([...messages, new HumanMessage('지금까지 조회한 결과만으로 최종 답변을 한국어로 작성해 주세요. 확인되지 않은 것은 "확인 필요"로 표시하세요.')]);
+        answer = text(retry.content).trim();
+      }
       return { answer: answer || '답변을 만들지 못했습니다. 질문을 조금 바꿔 다시 해 주세요.', toolCalls: called, limitReached: overLimit };
     }
     messages.push(res);

@@ -1,6 +1,6 @@
 // 카카오(다음) 지도: 판로 비서가 찾은 가게들을 지도 위에 표시한다. JavaScript 키가 없으면 아무것도 그리지 않는다.
 // 키는 브라우저에 들어가는 공개용이며, 카카오 개발자 사이트에 등록한 사이트 주소에서만 동작한다.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 export const kakaoMapReady = Boolean(KEY);
@@ -18,10 +18,9 @@ function loadSdk() {
   return loader;
 }
 
-export default function KakaoMap({ places = [] }) {
+function MapBox({ pts, title }) {
   const box = useRef(null);
   const [error, setError] = useState('');
-  const pts = places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
 
   useEffect(() => {
     if (!kakaoMapReady || !pts.length || !box.current) return undefined;
@@ -42,13 +41,25 @@ export default function KakaoMap({ places = [] }) {
       if (pts.length > 1) map.setBounds(bounds);
     }).catch((e) => setError(e.message));
     return () => { cancelled = true; };
-  }, [places]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!kakaoMapReady || !pts.length) return null;
   return (
     <div className="mt-3">
-      <div className="notice mb-1"><i className="bi bi-geo-alt me-1" />찾은 가게 위치 (카카오 지도)</div>
+      <div className="notice mb-1"><i className="bi bi-geo-alt me-1" />{title} ({pts.length}곳, 카카오 지도)</div>
       {error ? <div className="text-danger notice">{error}</div> : <div ref={box} className="kmap" role="img" aria-label="찾은 가게들의 지도" />}
     </div>
+  );
+}
+
+// 제주와 서울처럼 멀리 떨어진 가게는 한 지도에 담으면 점이 보이지 않으므로 지역별로 지도를 따로 그린다
+export default function KakaoMap({ places = [] }) {
+  const pts = useMemo(() => places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)), [places]);
+  if (!kakaoMapReady || !pts.length) return null;
+  const jeju = pts.filter((p) => p.lat < 34), other = pts.filter((p) => p.lat >= 34);
+  return (
+    <>
+      {jeju.length > 0 && <MapBox pts={jeju} title="제주 지역" />}
+      {other.length > 0 && <MapBox pts={other} title="제주 밖 지역" />}
+    </>
   );
 }

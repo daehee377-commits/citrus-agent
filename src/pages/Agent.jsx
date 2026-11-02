@@ -16,7 +16,7 @@ const SUGGESTIONS = [
 
 const TOOL_LABEL = {
   search_places: '장소 검색', search_blog_reviews: '후기 확인', get_travel_time: '이동시간 계산',
-  get_weather: '날씨 확인', get_market_price: '시세 확인', get_pest_info: '병해충 확인', get_delivery_guide: '배송 안내',
+  get_weather: '날씨 확인', get_market_price: '시세 확인', get_retail_price: '소비자가 확인', get_pest_info: '병해충 확인', get_delivery_guide: '배송 안내',
 };
 
 // 찾은 후보 중 마음에 드는 곳을 "내 후보"에 저장하는 버튼들 (장소명·방문/배송·규모만 저장)
