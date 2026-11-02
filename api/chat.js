@@ -40,7 +40,7 @@ export default async function handler(req, res) {
         const last = [...calls].reverse().find((x) => x.name === name && x.count === null); if (last) last.count = countOf(out);
         if (name !== 'search_places') return;
         try {
-          for (const p of JSON.parse(out)) if (p?.name && places.size < 10) places.set(p.name, { name: p.name, mode: p.regionMode ?? '확인 필요', size: p.buyerSize ?? '확인 필요' });
+          for (const p of JSON.parse(out)) if (p?.name && places.size < 10) places.set(p.name, { name: p.name, mode: p.regionMode ?? '확인 필요', size: p.buyerSize ?? '확인 필요', lat: p.lat, lng: p.lng });
         } catch { /* 오류 응답이면 후보 없음 */ }
       },
     });

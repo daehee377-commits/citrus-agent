@@ -3,6 +3,7 @@ import Markdown from 'react-markdown';
 import { askAgent } from '../api/client.js';
 import { useAppStore } from '../store/useAppStore.js';
 import { supabaseReady, listFavorites, addFavorite } from '../lib/supabase.js';
+import KakaoMap from '../components/KakaoMap.jsx';
 
 const SUGGESTIONS = [
   '서귀포 근처에서 감귤을 직거래할 만한 카페나 펜션 알려줘',
@@ -115,6 +116,7 @@ export default function Agent() {
                 {m.isError ? <div className="text-danger"><i className="bi bi-exclamation-circle me-1" />{m.content}</div> : (
                   <Markdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer noopener">{children}</a> }}>{m.content}</Markdown>
                 )}
+                {m.places?.length > 0 && <KakaoMap places={m.places} />}
                 {supabaseReady && m.places?.length > 0 && <SaveChips places={m.places} sessionId={sessionId} />}
               </>
             )}
