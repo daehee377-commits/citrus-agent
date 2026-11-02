@@ -17,7 +17,8 @@
     "preview": "vite preview",
     "test:agent": "node --env-file=.env.local tests/agent.test.js",
     "test:supabase": "node --env-file=.env.local tests/supabase.test.js",
-    "images": "node --env-file=.env.local scripts/fetch-images.mjs && node scripts/download-images.mjs"
+    "images": "node --env-file=.env.local scripts/fetch-images.mjs && node scripts/download-images.mjs",
+    "test:orders": "node --env-file=.env.local tests/orders.test.js"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.6.0",

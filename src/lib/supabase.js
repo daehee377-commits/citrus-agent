@@ -32,3 +32,37 @@ export async function removeFavorite(sessionId, id) {
   const { error } = await db(sessionId).from('citrus_favorites').delete().eq('id', id);
   fail(error);
 }
+
+// ── 주문·연락 현황판: 별칭·방문/택배·상자 수·상태만 저장한다 (개인정보 칸 없음) ──
+const failOrder = (error) => {
+  if (!error) return;
+  if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('주문 현황판 테이블이 아직 만들어지지 않았습니다. (supabase/orders.sql 실행 필요)');
+  if (error.code === '23514') throw new Error('입력값을 확인해 주세요. 별칭에는 전화번호처럼 숫자 4자리 이상이나 @ 를 쓸 수 없습니다.');
+  throw new Error('저장소와 통신하지 못했습니다. 잠시 뒤 다시 시도해 주세요.');
+};
+const ORDER_COLS = 'id, no, nick, mode, qty, extra, status, carrier, want_date, created_at';
+
+export async function listOrders(sessionId) {
+  const { data, error } = await db(sessionId).from('citrus_orders').select(ORDER_COLS).order('no', { ascending: false });
+  failOrder(error);
+  return data;
+}
+
+export async function addOrder(sessionId, order, nextNo) {
+  const { data, error } = await db(sessionId).from('citrus_orders')
+    .insert({ session_id: sessionId, no: nextNo, nick: order.nick, mode: order.mode, qty: order.qty, carrier: order.carrier, want_date: order.want_date || null })
+    .select(ORDER_COLS).single();
+  failOrder(error);
+  return data;
+}
+
+export async function updateOrder(sessionId, id, patch) {
+  const { data, error } = await db(sessionId).from('citrus_orders').update(patch).eq('id', id).select(ORDER_COLS).single();
+  failOrder(error);
+  return data;
+}
+
+export async function removeOrder(sessionId, id) {
+  const { error } = await db(sessionId).from('citrus_orders').delete().eq('id', id);
+  failOrder(error);
+}
