@@ -18,17 +18,17 @@ function db(sessionId) {
 const fail = (error) => { if (error) throw new Error(error.code === '23505' ? '이미 저장한 후보입니다.' : '저장소와 통신하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'); };
 
 export async function listFavorites(sessionId) {
-  const { data, error } = await db(sessionId).from('favorites').select('id, place_name, mode, size, created_at').order('created_at', { ascending: false });
+  const { data, error } = await db(sessionId).from('citrus_favorites').select('id, place_name, mode, size, created_at').order('created_at', { ascending: false });
   fail(error);
   return data;
 }
 
 export async function addFavorite(sessionId, { name, mode, size }) {
-  const { error } = await db(sessionId).from('favorites').insert({ session_id: sessionId, place_name: name, mode, size });
+  const { error } = await db(sessionId).from('citrus_favorites').insert({ session_id: sessionId, place_name: name, mode, size });
   fail(error);
 }
 
 export async function removeFavorite(sessionId, id) {
-  const { error } = await db(sessionId).from('favorites').delete().eq('id', id);
+  const { error } = await db(sessionId).from('citrus_favorites').delete().eq('id', id);
   fail(error);
 }
