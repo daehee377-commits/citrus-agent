@@ -40,5 +40,33 @@
     "author": "JoanjoCastello",
     "source": "https://pixabay.com/photos/fruit-food-leaf-yard-juicy-3175021/",
     "license": "Pixabay Content License"
+  },
+  {
+    "file": "weather-sunny.jpg",
+    "pixabayId": 3588618,
+    "author": "jplenio",
+    "source": "https://pixabay.com/photos/sun-sky-blue-sunlight-sunbeam-3588618/",
+    "license": "Pixabay Content License"
+  },
+  {
+    "file": "weather-partly.jpg",
+    "pixabayId": 5277697,
+    "author": "ELG21",
+    "source": "https://pixabay.com/photos/landscape-darling-clouds-weather-5277697/",
+    "license": "Pixabay Content License"
+  },
+  {
+    "file": "weather-cloudy.jpg",
+    "pixabayId": 4237062,
+    "author": "jplenio",
+    "source": "https://pixabay.com/photos/sky-clouds-atmosphere-weather-air-4237062/",
+    "license": "Pixabay Content License"
+  },
+  {
+    "file": "weather-rain.jpg",
+    "pixabayId": 4170406,
+    "author": "DerWeg",
+    "source": "https://pixabay.com/photos/leaf-rain-nature-close-up-botany-4170406/",
+    "license": "Pixabay Content License"
   }
 ]

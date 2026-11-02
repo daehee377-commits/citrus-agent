@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchWeather, fetchPrice, fetchPest } from '../api/client.js';
-import WorkPill from '../components/WorkPill.jsx';
+import WeatherCard from '../components/WeatherCard.jsx';
 import { Loading, ErrorBox } from '../components/Status.jsx';
 import { JEJU_AREAS } from '../../server/jejuAreas.js'; // 이름 목록만 담긴 파일이라 브라우저에서 써도 안전하다
 
-const fmtDate = (d) => `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}`;
 const won = (n) => (n == null ? '-' : `${n.toLocaleString()}원`);
 
 function Weather() {
@@ -33,17 +32,10 @@ function Weather() {
       {state.error && <ErrorBox message={state.error} />}
       {state.days && (
         <>
-          <div className="d-flex gap-3 overflow-auto pb-2">
-            {state.days.map((d) => (
-              <div className="day-card" key={d.date}>
-                <div className="fw-bold">{fmtDate(d.date)}</div>
-                <div className="notice">{d.sky} · {d.tmn ?? '?'}~{d.tmx ?? '?'}℃</div>
-                <div className="notice mb-2">강수확률 최대 {d.maxPop ?? '?'}%</div>
-                <WorkPill work={d.work} />
-              </div>
-            ))}
+          <div className="wgrid">
+            {state.days.map((d) => <WeatherCard key={d.date} day={d} />)}
           </div>
-          <p className="notice mt-2 mb-0">비가 오면 수확은 못 하고 천막 안 포장 작업만 합니다. 강수확률 60% 이상이면 비로 봅니다. 기온의 ?는 기상청이 값을 주지 않은 경우입니다. 예보는 5km 격자 단위라 이웃한 동은 같은 값이 나올 수 있습니다.</p>
+          <p className="notice mt-3 mb-0">비가 오면 수확은 못 하고 천막 안 포장 작업만 합니다. 강수확률 60% 이상이면 비로 봅니다. 기온은 기상청이 값을 주지 않은 날에는 있는 값만 보여 줍니다. 예보는 5km 격자 단위라 이웃한 동은 같은 값이 나올 수 있습니다.</p>
         </>
       )}
     </section>

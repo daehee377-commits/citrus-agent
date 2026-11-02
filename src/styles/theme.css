@@ -59,3 +59,19 @@ body { background: var(--cream); }
 .banner-photo h2 { font-weight: 800; margin-bottom: .2rem; }
 .banner-photo .notice { color: #f3f8f1; }
 .thumb-photo { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(120, 80, 20, .2); }
+
+/* 날씨 카드 (하늘 사진 + 강수확률 막대) */
+.wgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
+.wcard { background: #fff; border-radius: 1rem; overflow: hidden; box-shadow: 0 2px 12px rgba(120, 80, 20, .12); display: flex; flex-direction: column; }
+.wcard-photo { height: 118px; background-size: cover; background-position: center; position: relative; color: #fff; padding: .7rem .85rem; display: flex; flex-direction: column; justify-content: space-between; }
+.wcard-photo::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, .38) 0%, rgba(0, 0, 0, .05) 45%, rgba(0, 0, 0, .45) 100%); }
+.wcard-photo > * { position: relative; text-shadow: 0 1px 4px rgba(0, 0, 0, .55); }
+.wcard-date { font-size: 1.35rem; font-weight: 800; line-height: 1.1; }
+.wcard-date span { font-size: .9rem; font-weight: 600; opacity: .95; }
+.wcard-sky { font-size: .95rem; font-weight: 700; }
+.wcard-body { padding: .8rem .9rem 1rem; display: flex; flex-direction: column; gap: .55rem; align-items: flex-start; }
+.wcard-temp { font-size: 1.15rem; font-weight: 800; }
+.wcard-pop { width: 100%; }
+.wbar { height: 7px; border-radius: 99px; background: #E9EEF4; overflow: hidden; margin-top: .25rem; }
+.wbar-fill { height: 100%; border-radius: 99px; background: #9DB8D6; min-width: 3px; }
+.wbar-fill.is-rain { background: var(--rain); }
