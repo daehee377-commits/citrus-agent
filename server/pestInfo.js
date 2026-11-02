@@ -28,7 +28,10 @@ export async function getPestInfo({ crop = '감귤', name = '' } = {}) {
   const items = list.list?.item ? [].concat(list.list.item) : [];
   if (!items.length) throw new Error(`'${crop}'에 대한 병 정보를 찾지 못했습니다.`);
   const names = items.map((i) => i.sickNameKor);
-  if (!name) return { crop, total: names.length, diseases: names, source: '국가농작물병해충관리시스템(농촌진흥청)' };
+  // 병마다 대표 사진(썸네일)이 함께 온다. 화면에서 바로 열 수 있게 https 주소로 바꾼다 (농촌진흥청 사진 서버만 허용)
+  // 사진 파일 이름(imageFileName)이 없는 주소는 농촌진흥청의 '사진 없음' 대체 그림이라 사진이 없는 것으로 본다
+  const photo = (u) => (/^https?:\/\/ncpms\.rda\.go\.kr\/.*imageFileName=[0-9a-f]{8}/.test(String(u)) ? String(u).replace(/^http:/, 'https:') : null);
+  if (!name) return { crop, total: names.length, diseases: names, items: items.map((i) => ({ name: i.sickNameKor, thumb: photo(i.thumbImg) })), source: '국가농작물병해충관리시스템(농촌진흥청)' };
 
   const hit = items.find((i) => String(i.sickNameKor).includes(name));
   if (!hit) return { crop, notFound: name, diseases: names, note: '이 이름의 병을 찾지 못했습니다. 목록에서 골라 주세요.' };
@@ -36,6 +39,8 @@ export async function getPestInfo({ crop = '감귤', name = '' } = {}) {
   return {
     crop, name: d.sickNameKor, symptoms: clean(d.symptoms), developmentCondition: clean(d.developmentCondition),
     prevention: clean(d.preventionMethod),
+    // 병징 사진(잎·열매·가지 등) 최대 8장. 사진마다 "과실의 병징(열매)" 같은 설명이 붙어 있다.
+    images: (d.imageList?.item ? [].concat(d.imageList.item) : []).map((x) => ({ url: photo(x.image), title: String(x.imageTitle ?? '') })).filter((x) => x.url).slice(0, 8),
     note: '약제 사용은 반드시 등록된 약제와 사용 기준을 농업기술센터 등에 확인하세요. 이 정보는 참고용입니다.',
     source: '국가농작물병해충관리시스템(농촌진흥청)',
   };

@@ -99,21 +99,34 @@ function Pest() {
       {error && <ErrorBox message={error} />}
       {list && (
         <>
-          <div className="d-flex flex-wrap gap-2 mb-3">
-            {list.diseases.map((n) => (
-              <button key={n} className={`btn btn-sm ${detail?.name === n ? 'btn-leaf' : 'btn-outline-secondary'}`} onClick={() => open(n)}>{n}</button>
+          <div className="pgrid mb-3">
+            {(list.items ?? list.diseases.map((n) => ({ name: n }))).map((it) => (
+              <button key={it.name} className={`pcard ${detail?.name === it.name ? 'is-active' : ''}`} onClick={() => open(it.name)} aria-label={`${it.name} 보기`}>
+                <span className="pthumb"><i className="bi bi-image" />{it.thumb && <img src={it.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}</span>
+                <span className="pcard-name">{it.name}</span>
+              </button>
             ))}
           </div>
           {busy && <Loading />}
           {detail && !busy && (
             <div>
               <h5>{detail.name}</h5>
+              {detail.images?.length > 0 && (
+                <div className="pgallery mb-3">
+                  {detail.images.map((im, i) => (
+                    <a key={i} href={im.url} target="_blank" rel="noreferrer noopener" className="pshot">
+                      <img src={im.url} alt={im.title || `${detail.name} 사진`} loading="lazy" referrerPolicy="no-referrer" />
+                      {im.title && <span>{im.title}</span>}
+                    </a>
+                  ))}
+                </div>
+              )}
               <p className="mb-2"><strong>증상</strong><br /><span style={{ whiteSpace: 'pre-line' }}>{detail.symptoms}</span></p>
               <p className="mb-2"><strong>방제 방법</strong><br /><span style={{ whiteSpace: 'pre-line' }}>{detail.prevention}</span></p>
-              <p className="notice mb-0">{detail.note} 출처: {detail.source}</p>
+              <p className="notice mb-0">{detail.note} 사진·내용 출처: {detail.source}</p>
             </div>
           )}
-          {!detail && <p className="notice mb-0">병 이름을 눌러 증상과 방제 방법을 확인하세요. (총 {list.total}종)</p>}
+          {!detail && <p className="notice mb-0">병 사진을 눌러 증상·방제 방법과 병징 사진을 확인하세요. (총 {list.total}종 · 사진 출처: 농촌진흥청 국가농작물병해충관리시스템)</p>}
         </>
       )}
     </section>

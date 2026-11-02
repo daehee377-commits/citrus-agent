@@ -81,7 +81,8 @@ export const getMarketPriceTool = tool(safe(async () => getMarketPrice()), {
   schema: z.object({}),
 });
 
-export const getPestInfoTool = tool(safe(async ({ name }) => getPestInfo({ crop: '감귤', name })), {
+// 사진 주소는 화면용이라 AI 에게는 주지 않는다 (글자 수만 늘어난다)
+export const getPestInfoTool = tool(safe(async ({ name }) => { const { items, images, ...text } = await getPestInfo({ crop: '감귤', name }); return text; }), {
   name: 'get_pest_info',
   description: '감귤에 발생하는 병 목록을 보거나, 병 이름을 주면 증상·발생 조건·방제 방법을 알려 준다. name 을 비우면 병 목록을 준다.',
   schema: z.object({ name: z.string().optional().describe('병 이름 (예: 궤양병). 비우면 목록') }),
