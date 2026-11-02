@@ -7,7 +7,7 @@ import { SYSTEM_PROMPT } from '../topics/citrus.js';
 // 모델 응답 content 는 글자이거나 조각 배열일 수 있어 글자로 통일한다
 const text = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((p) => p.text ?? '').join('') : String(c ?? ''));
 
-export async function runAgent({ question, history = [], onTool = () => {} }) {
+export async function runAgent({ question, history = [], onTool = () => {}, onResult = () => {} }) {
   const q = String(question ?? '').trim();
   if (!q) throw new Error('질문을 입력해 주세요.');
   if (q.length > LIMITS.maxQuestionChars) throw new Error(`질문이 너무 깁니다. ${LIMITS.maxQuestionChars}자 이내로 줄여 주세요.`);
@@ -38,6 +38,7 @@ export async function runAgent({ question, history = [], onTool = () => {} }) {
       onTool(tc.name); // 화면에 "도구 호출 중: 이름" 을 보여 주기 위한 알림
       const t = toolsByName[tc.name];
       const out = t ? await t.invoke(tc.args) : '{"error":"알 수 없는 도구입니다."}';
+      onResult(tc.name, String(out)); // 도구 결과를 서버가 가공해 화면에 보낼 수 있게 한다 (예: 저장 후보 버튼)
       messages.push(new ToolMessage({ content: String(out).slice(0, 12000), tool_call_id: tc.id, name: tc.name }));
     }
   }

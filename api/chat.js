@@ -27,9 +27,20 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   const send = (o) => res.write(JSON.stringify(o) + '\n');
+  const places = new Map(); // 저장 버튼용 후보: 장소명·방문/배송 구분·규모만 보낸다 (주소·전화번호는 보내지 않는다)
   try {
-    const r = await runAgent({ question: q, history: Array.isArray(history) ? history : [], onTool: (name) => send({ type: 'tool', name }) });
-    send({ type: 'answer', answer: r.answer, toolCalls: r.toolCalls, remaining: limit.remaining });
+    const r = await runAgent({
+      question: q,
+      history: Array.isArray(history) ? history : [],
+      onTool: (name) => send({ type: 'tool', name }),
+      onResult: (name, out) => {
+        if (name !== 'search_places') return;
+        try {
+          for (const p of JSON.parse(out)) if (p?.name && places.size < 10) places.set(p.name, { name: p.name, mode: p.regionMode ?? '확인 필요', size: p.buyerSize ?? '확인 필요' });
+        } catch { /* 오류 응답이면 후보 없음 */ }
+      },
+    });
+    send({ type: 'answer', answer: r.answer, toolCalls: r.toolCalls, remaining: limit.remaining, places: [...places.values()] });
   } catch (e) {
     send({ type: 'error', message: friendly(e) });
   }
