@@ -57,7 +57,8 @@ function Terrain({ t, raining }) {
     const pos = new Float32Array(cols * rows * 3), col = new Float32Array(cols * rows * 3);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const h = t.data[r * cols + c], [x, z] = toXZ(t.lat1 - r * stepLat, t.lng0 + c * stepLng), i = (r * cols + c) * 3;
-      pos.set([x, yOf(h), z], i); col.set(h > 0 ? colorOf(h) : [0.3, 0.5, 0.6], i);
+      pos.set([x, craterY(x, z, yOf(h)), z], i);
+      col.set(h > 0 ? (Math.hypot(x - HALLA[0], z - HALLA[1]) < CRATER_R * 0.8 ? [0.43, 0.35, 0.3] : colorOf(h)) : [0.3, 0.5, 0.6], i); // 분화구 안쪽은 어두운 현무암 색
     }
     const idx = [];
     for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) {
@@ -80,6 +81,124 @@ function Island({ raining }) {
     return new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: false });
   }, []);
   return <mesh geometry={geo} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}><meshStandardMaterial color={raining ? '#5f8f4a' : '#6aa84f'} /></mesh>;
+}
+
+// 출렁이는 바다: 격자 평면의 높이를 사인 곡선 4개를 겹쳐 흔들고, 법선(빛이 닿는 방향)도 같은 식으로 계산해서 물결이 부드럽게 반짝인다.
+// 땅에서 가까운 곳은 연한 청록, 먼 곳은 짙은 파랑으로 칠하고, 해안선 가까이에서는 흰 거품이 밀려왔다 사라진다. 비 오는 날은 파도가 더 크고 어둡다.
+// 파도가 섬(땅의 가장 낮은 높이 0.05)을 덮지 않도록 진폭을 작게 잡았다. "동작 줄이기" 설정을 켠 사람에게는 멈춘 바다를 보여 준다.
+const SEA_LEVEL = -0.09;
+const WAVES = [[0.9, 0.3, 0.04, 1.4], [-0.4, 1.1, 0.03, 1.1], [1.6, -0.8, 0.018, 2.0], [0.5, 2.2, 0.01, 2.6]]; // [x방향, z방향, 높이, 속도]
+const SEA_STOPS = [[0, [0.56, 0.88, 0.85]], [4, [0.3, 0.72, 0.88]], [14, [0.2, 0.62, 0.88]], [40, [0.13, 0.46, 0.75]]]; // 땅에서의 거리(칸) → 색
+function seaColor(d) {
+  for (let i = 1; i < SEA_STOPS.length; i++) if (d <= SEA_STOPS[i][0] || i === SEA_STOPS.length - 1) {
+    const [d0, c0] = SEA_STOPS[i - 1], [d1, c1] = SEA_STOPS[i], k = Math.min(1, Math.max(0, (d - d0) / (d1 - d0)));
+    return c0.map((v, j) => v + (c1[j] - v) * k);
+  }
+}
+// 각 칸이 가장 가까운 땅에서 몇 칸 떨어졌는지 (두 번 훑어서 구한다)
+function landDistance(t) {
+  const { cols, rows, data } = t, d = new Float32Array(cols * rows);
+  for (let i = 0; i < d.length; i++) d[i] = data[i] > 0 ? 0 : 1e3;
+  const at = (r, c) => (r < 0 || c < 0 || r >= rows || c >= cols ? 1e3 : d[r * cols + c]);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) d[r * cols + c] = Math.min(d[r * cols + c], at(r, c - 1) + 1, at(r - 1, c) + 1, at(r - 1, c - 1) + 1.4, at(r - 1, c + 1) + 1.4);
+  for (let r = rows - 1; r >= 0; r--) for (let c = cols - 1; c >= 0; c--) d[r * cols + c] = Math.min(d[r * cols + c], at(r, c + 1) + 1, at(r + 1, c) + 1, at(r + 1, c + 1) + 1.4, at(r + 1, c - 1) + 1.4);
+  return d;
+}
+function Sea({ raining, terrain }) {
+  const { geo, base, state } = useMemo(() => {
+    const g = new THREE.PlaneGeometry(36, 36, 140, 140);
+    g.rotateX(-Math.PI / 2); // 눕힌다 (x, 0, z)
+    const n = g.attributes.position.count;
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    return { geo: g, base: Float32Array.from(g.attributes.position.array), state: { dist: new Float32Array(n).fill(40), baseCol: new Float32Array(n * 3), foam: [] } };
+  }, []);
+  // 지형 파일이 도착하면 땅까지의 거리로 바다 색과 거품 자리를 정한다
+  useEffect(() => {
+    const ld = terrain ? landDistance(terrain) : null, n = geo.attributes.position.count, col = geo.attributes.color;
+    const stepLng = terrain ? (terrain.lng1 - terrain.lng0) / (terrain.cols - 1) : 1, stepLat = terrain ? (terrain.lat1 - terrain.lat0) / (terrain.rows - 1) : 1;
+    state.foam = [];
+    for (let i = 0; i < n; i++) {
+      const x = base[i * 3], z = base[i * 3 + 2];
+      let d = 40;
+      if (ld) {
+        const c = Math.round((x / (0.84 * K) + 126.55 - terrain.lng0) / stepLng), r = Math.round((terrain.lat1 - (33.34 - z / K)) / stepLat);
+        d = c < 0 || r < 0 || c >= terrain.cols || r >= terrain.rows ? 60 : ld[r * terrain.cols + c];
+      }
+      state.dist[i] = d;
+      const rgb = seaColor(d);
+      state.baseCol.set(rgb, i * 3); col.setXYZ(i, rgb[0], rgb[1], rgb[2]);
+      if (d > 0 && d <= 3) state.foam.push(i);
+    }
+    col.needsUpdate = true;
+  }, [terrain, geo, base, state]);
+  const still = useMemo(() => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches, []);
+  useFrame(({ clock }) => {
+    if (still) return;
+    const t = clock.elapsedTime, k = raining ? 1.5 : 1, pos = geo.attributes.position, nor = geo.attributes.normal, col = geo.attributes.color;
+    for (let i = 0; i < pos.count; i++) {
+      const x = base[i * 3], z = base[i * 3 + 2];
+      let h = 0, dx = 0, dz = 0;
+      for (const w of WAVES) { const ph = w[0] * x + w[1] * z + w[3] * t, s = Math.sin(ph) * w[2] * k, c = Math.cos(ph) * w[2] * k; h += s; dx += c * w[0]; dz += c * w[1]; }
+      pos.setY(i, h);
+      const len = Math.hypot(dx, 1, dz); nor.setXYZ(i, -dx / len, 1 / len, -dz / len);
+    }
+    for (const i of state.foam) { // 거품: 해안에서 바깥으로 밀려 나갔다가 사라지는 흰 띠
+      const f = Math.max(0, Math.sin(t * 1.8 - state.dist[i] * 1.7)) * (1 - state.dist[i] / 3.4) * 0.95;
+      col.setXYZ(i, state.baseCol[i * 3] + (1 - state.baseCol[i * 3]) * f, state.baseCol[i * 3 + 1] + (1 - state.baseCol[i * 3 + 1]) * f, state.baseCol[i * 3 + 2] + (1 - state.baseCol[i * 3 + 2]) * f);
+    }
+    pos.needsUpdate = true; nor.needsUpdate = true; col.needsUpdate = true;
+  });
+  return <mesh geometry={geo} position={[0, SEA_LEVEL, 0]}><meshStandardMaterial vertexColors color={raining ? '#b4c1cd' : '#ffffff'} roughness={0.25} metalness={0.12} /></mesh>;
+}
+
+// 구름: 하늘 상태(맑음·구름많음·흐림)에 따라 개수가 달라지고, 비 오는 날은 회색 구름이 낀다. 섬 뒤쪽과 옆쪽 하늘에서 천천히 흘러간다.
+// 섬 위(카메라와 섬 사이)는 비워 두어서 핀을 가리지 않는다.
+const SKY_LEVEL = { 맑음: 0.15, 구름많음: 0.6, 흐림: 1 };
+function Clouds({ level, raining }) {
+  const refs = useRef([]);
+  const clusters = useMemo(() => {
+    let s = 7; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; // 매번 같은 구름 모양이 되도록 고정된 난수
+    return Array.from({ length: 11 }, (_, i) => {
+      const behind = i % 2 === 0;
+      const c = {
+        x: (rnd() - 0.5) * 30, y: 2.6 + rnd() * 2.2, z: behind ? -5 - rnd() * 9 : (rnd() < 0.5 ? -1 : 1) * (4 + rnd() * 3), side: !behind,
+        speed: 0.12 + rnd() * 0.12,
+        parts: Array.from({ length: 5 }, () => [(rnd() - 0.5) * 2.2, rnd() * 0.35, (rnd() - 0.5) * 1.0, 0.5 + rnd() * 0.45]),
+      };
+      return c.side ? { ...c, x: (c.x < 0 ? -1 : 1) * (8.5 + Math.abs(c.x) * 0.2) } : c; // 옆쪽 구름은 섬 바깥(|x|>8.5)에 둔다
+    });
+  }, []);
+  const shown = Math.min(clusters.length, Math.round(2 + (raining ? 1 : level) * 9));
+  useFrame((_, dt) => {
+    refs.current.forEach((g, i) => { if (!g) return; g.position.x += clusters[i].speed * dt; if (g.position.x > 16) g.position.x = -16; });
+  });
+  const color = raining ? '#7d8893' : level > 0.8 ? '#cdd5dc' : '#ffffff';
+  return clusters.slice(0, shown).map((c, i) => (
+    <group key={i} ref={(el) => { refs.current[i] = el; }} position={[c.x, c.y, c.z]}>
+      {c.parts.map((p, j) => <mesh key={j} position={[p[0], p[1], p[2]]} scale={[1.5, 0.62, 1]}><sphereGeometry args={[p[3], 14, 10]} /><meshStandardMaterial color={color} roughness={1} transparent opacity={0.93} /></mesh>)}
+    </group>
+  ));
+}
+
+// 백록담: 한라산 정상의 분화구. 지형 격자(약 280m)로는 분화구가 보이지 않아서, 정상 둘레를 움푹 파고 가장자리를 살짝 올린 뒤 바닥에 물을 채운다.
+// 실제 크기(지름 약 500m)는 지도에서 너무 작아서 눈에 보이게 과장했다.
+const CRATER_R = 0.28; // 분화구 둘레 반지름(지도 단위)
+const CRATER_DEPTH = 0.2;
+function craterY(x, z, y) {
+  const dd = Math.hypot(x - HALLA[0], z - HALLA[1]);
+  if (dd >= CRATER_R * 1.35) return y;
+  const t = Math.min(1, dd / CRATER_R), bowl = (1 - t * t) * (1 - t * t) * CRATER_DEPTH; // 가운데가 가장 깊은 그릇 모양
+  const rim = 0.05 * Math.exp(-(((dd - CRATER_R * 0.9) / 0.06) ** 2)); // 가장자리 능선
+  return y - bowl + rim;
+}
+function Crater({ t }) {
+  const y = yOf(heightAt(t, 33.3617, 126.5292)) - CRATER_DEPTH + 0.02; // 분화구 바닥 높이
+  return (
+    <group position={[HALLA[0], y, HALLA[1]]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.12, 32]} /><meshStandardMaterial color="#2f8fb8" roughness={0.1} metalness={0.3} /></mesh>
+      <Html position={[0, 0.5, 0]} center distanceFactor={9} style={{ pointerEvents: 'none' }}><div className="j3d-label j3d-halla"><strong>백록담</strong><span>분화구</span></div></Html>
+    </group>
+  );
 }
 
 // 화면이 좁을수록(휴대폰) 카메라를 뒤로 물려서 섬 전체가 보이게 한다
@@ -133,17 +252,11 @@ function Pin({ place, day, selected, onSelect, terrain }) {
         <mesh key={i} position={p}><sphereGeometry args={[0.14, 16, 16]} /><meshStandardMaterial color="#F08A1C" /></mesh>
       ))}
       {day && !ok && <mesh position={[0.45, 0.25, 0.2]}><coneGeometry args={[0.32, 0.5, 4]} /><meshStandardMaterial color="#4A7BB5" /></mesh>}
-      {/* 이름표도 눌러서 열 수 있다 (핀이 작아서 이름표를 누르는 사람이 많다). 선택되면 이름표 대신 날씨 카드가 열린다 */}
-      {!selected && (
-        <Html position={[0, 1.75, 0]} center distanceFactor={9}>
-          <button type="button" className="j3d-label j3d-click" onClick={(e) => { e.stopPropagation(); onSelect(place.name); }}>
-            <strong>{place.name}</strong><span>{!day ? '불러오는 중' : day.work === '수확 가능' ? '☀ 수확 가능' : '🌧 ' + day.work}</span>
-          </button>
-        </Html>
-      )}
-      {selected && (
-        <Html position={[0, 2.2, 0]} center distanceFactor={9} zIndexRange={[20, 10]}>
-          <div className="j3d-pop" style={{ transform: `translateX(${Math.max(-45, Math.min(45, -place.pos[0] * 9))}%)` }} role="dialog" aria-label={`${place.name} 날씨`}>
+      {/* 이름표도 눌러서 열 수 있다 (핀이 작아서 이름표를 누르는 사람이 많다). 선택되면 이름표 자리에 날씨 카드가 열린다.
+          Html 은 하나만 두고 안의 내용만 바꾼다 (Html 을 켰다 껐다 하면 React 오류가 난다) */}
+      <Html position={[0, 1.75, 0]} center distanceFactor={9} zIndexRange={selected ? [20, 10] : [16, 0]}>
+        {selected ? (
+          <div className="j3d-pop" style={{ transform: `translate(${Math.max(-45, Math.min(45, -place.pos[0] * 9))}%, -30%)` }} role="dialog" aria-label={`${place.name} 날씨`}>
             <button type="button" className="j3d-close" aria-label="닫기" onClick={(e) => { e.stopPropagation(); onSelect(''); }}>×</button>
             <strong>{place.name}</strong>
             {day ? (
@@ -160,8 +273,12 @@ function Pin({ place, day, selected, onSelect, terrain }) {
               </>
             ) : <div>예보를 가져오지 못했습니다.</div>}
           </div>
-        </Html>
-      )}
+        ) : (
+          <button type="button" className="j3d-label j3d-click" onClick={(e) => { e.stopPropagation(); onSelect(place.name); }}>
+            <strong>{place.name}</strong><span>{!day ? '불러오는 중' : day.work === '수확 가능' ? '☀ 수확 가능' : '🌧 ' + day.work}</span>
+          </button>
+        )}
+      </Html>
     </group>
   );
 }
@@ -170,13 +287,17 @@ export default function Jeju3D({ byPlace = {}, raining = false, selected = '', o
   // 지형 파일을 못 읽으면(null) 예전의 단순한 해안선 모양으로 보여 준다
   const [terrain, setTerrain] = useState(null);
   useEffect(() => { fetch('/data/jeju-terrain.json').then((r) => (r.ok ? r.json() : Promise.reject())).then(setTerrain).catch(() => {}); }, []);
-  const peak = terrain ? yOf(1700) + 0.35 : 1.9;
+  const peak = terrain ? yOf(1700) + 0.45 : 1.9;
+  const skies = Object.values(byPlace).filter(Boolean).map((d) => SKY_LEVEL[d.sky]).filter((v) => v != null);
+  const cloudLevel = skies.length ? skies.reduce((x, y) => x + y, 0) / skies.length : 0.4; // 11곳 하늘 상태의 평균
   return (
     <Canvas camera={{ position: [0, 7.2, 8.6], fov: 45 }} dpr={[1, 1.5]} style={{ height: 480, borderRadius: '1.1rem', background: raining ? '#a9bccd' : '#bfe6fb' }} aria-label="제주섬 3D 지도">
       <Fit />
       <ambientLight intensity={raining ? 0.7 : 0.9} />
       <directionalLight position={[6, 10, 5]} intensity={raining ? 0.6 : 1.1} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.06, 0]}><planeGeometry args={[40, 40]} /><meshStandardMaterial color={raining ? '#8fa8c0' : '#7cc8ee'} /></mesh>
+      <Sea raining={raining} terrain={terrain} />
+      <Clouds level={cloudLevel} raining={raining} />
+      {terrain && <Crater t={terrain} />}
       {terrain ? <Terrain t={terrain} raining={raining} /> : (
         <>
           <Island raining={raining} />
