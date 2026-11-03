@@ -1,7 +1,7 @@
 // 에이전트 실행기: 질문을 받아 AI가 도구를 골라 부르고(최대 5번), 그 결과로 답하게 한다.
 import { SystemMessage, HumanMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
 import { tools, toolsByName } from './tools.js';
-import { createModel, LIMITS } from './model.js';
+import { createModel, createFallbackModels, LIMITS } from './model.js';
 import { SYSTEM_PROMPT } from '../topics/citrus.js';
 import { detectIntents } from './router.js';
 import { findAreaIn } from '../server/jejuAreas.js';
@@ -32,8 +32,11 @@ export async function runAgent({ question, history = [], onTool = () => {}, onRe
   if (!q) throw new Error('질문을 입력해 주세요.');
   if (q.length > LIMITS.maxQuestionChars) throw new Error(`질문이 너무 깁니다. ${LIMITS.maxQuestionChars}자 이내로 줄여 주세요.`);
 
-  const model = createModel();
-  const withTools = model.bindTools(tools);
+  // 주 모델이 사용량 한도 등으로 실패하면 예비 모델로 한 번 더 시도한다 (도구 연결은 모델마다 따로 한다)
+  const primary = createModel();
+  const backups = createFallbackModels();
+  const model = backups.length ? primary.withFallbacks({ fallbacks: backups }) : primary;
+  const withTools = backups.length ? primary.bindTools(tools).withFallbacks({ fallbacks: backups.map((m) => m.bindTools(tools)) }) : primary.bindTools(tools);
   const messages = [
     new SystemMessage(SYSTEM_PROMPT),
     ...history.slice(-6).map((m) => (m.role === 'user' ? new HumanMessage(String(m.content).slice(0, LIMITS.maxQuestionChars)) : new AIMessage(String(m.content).slice(0, 4000)))),
