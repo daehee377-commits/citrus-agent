@@ -6,18 +6,24 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 const BASKET = new THREE.Vector3(2.4, 0.35, 1.2);
-const FLIGHT = 0.9; // 열매가 바구니까지 날아가는 시간(초)
+const FLIGHT = 0.9; // 열매가 상자까지 날아가는 시간(초)
+const FRUIT_R = 0.16;
+// 컨테이너 안 자리: 한 층에 6개(3×2), 층마다 조금씩 어긋나게 쌓고 가장자리 위로 수북이 올라온다. 딴 열매가 바닥에 떨어져 있지 않고 모두 컨테이너 안에 담긴다.
+const SLOTS = Array.from({ length: 16 }, (_, i) => {
+  const layer = Math.floor(i / 6), w = i % 6, col = w % 3, row = Math.floor(w / 3);
+  return new THREE.Vector3(BASKET.x + (col - 1) * 0.34 + (layer % 2 ? 0.12 : 0), 0.7 + layer * 0.24, BASKET.z + (row - 0.5) * 0.34);
+});
 
 // 귤나무 수관(잎이 모인 둥근 부분)은 납작한 타원체다. 열매는 그 겉면에 매달려서 잎 사이로 튀어나와 보인다. (매번 같은 모양이 되도록 고정된 수식 사용)
-const CANOPY = { cy: 2.55, rx: 1.55, ry: 1.25, rz: 1.55 };
+const CANOPY = { cy: 1.75, rx: 1.3, ry: 0.95, rz: 1.3 };
 const FRUITS = Array.from({ length: 16 }, (_, i) => {
-  const a = i * 2.399963, h = 1.95 + ((i * 37) % 17) / 17 * 1.3;
+  const a = i * 2.399963, h = CANOPY.cy - 0.55 + ((i * 37) % 17) / 17 * 1.0;
   const surface = CANOPY.rx * Math.sqrt(Math.max(0.05, 1 - ((h - CANOPY.cy) / CANOPY.ry) ** 2)); // 그 높이에서 수관 겉면의 반지름
   const r = surface * (1 + (((i * 13) % 7) / 7) * 0.06);
   return new THREE.Vector3(Math.cos(a) * r, h, Math.sin(a) * r);
 });
 
-function Fruit({ home, state, onPick }) {
+function Fruit({ home, land, state, onPick }) {
   const ref = useRef();
   const t0 = useRef(null);
   useFrame(({ clock }) => {
@@ -26,7 +32,7 @@ function Fruit({ home, state, onPick }) {
       if (t0.current == null) t0.current = clock.elapsedTime;
       const k = Math.min(1, (clock.elapsedTime - t0.current) / FLIGHT);
       const e = k * k * (3 - 2 * k);
-      m.position.lerpVectors(home, BASKET, e);
+      m.position.lerpVectors(home, land, e);
       m.position.y += Math.sin(k * Math.PI) * 1.4; // 포물선으로 날아간다
       m.rotation.x += 0.12;
       if (k >= 1 && !state.landed) state.landed = true;
@@ -34,9 +40,9 @@ function Fruit({ home, state, onPick }) {
   });
   return (
     <mesh ref={ref} position={home} castShadow onClick={(e) => { e.stopPropagation(); onPick(); }} onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}>
-      <sphereGeometry args={[0.2, 20, 20]} />
+      <sphereGeometry args={[FRUIT_R, 20, 20]} />
       <meshStandardMaterial color="#F28C1B" roughness={0.5} />
-      <mesh position={[0, 0.2, 0]} scale={[1, 0.45, 1]}><sphereGeometry args={[0.06, 8, 6]} /><meshStandardMaterial color="#3E7D2B" /></mesh>{/* 꼭지 */}
+      <mesh position={[0, FRUIT_R, 0]} scale={[1, 0.45, 1]}><sphereGeometry args={[0.05, 8, 6]} /><meshStandardMaterial color="#3E7D2B" /></mesh>{/* 꼭지 */}
     </mesh>
   );
 }
@@ -52,7 +58,7 @@ function Leaves({ n, center, rx, ry, rz, seed, size = 1 }) {
       const rad = 0.9 + 0.12 * rnd();
       p.set(center[0] + k * Math.cos(th) * rx * rad, center[1] + uy * ry * rad, center[2] + k * Math.sin(th) * rz * rad);
       e.set(rnd() * 3, rnd() * 3, rnd() * 3); q.setFromEuler(e);
-      sc.set(0.19 * size, 0.08 * size, 0.12 * size); m.compose(p, q, sc);
+      sc.set(0.16 * size, 0.07 * size, 0.1 * size); m.compose(p, q, sc);
       ref.current.setMatrixAt(i, m);
       c.setHSL(0.27 + 0.06 * rnd(), 0.55, 0.16 + 0.16 * rnd()); ref.current.setColorAt(i, c);
     }
@@ -66,12 +72,12 @@ function Tree() {
   return (
     <group>
       {/* 줄기와 굵은 가지 세 개 */}
-      <mesh position={[0, 0.7, 0]} castShadow><cylinderGeometry args={[0.16, 0.28, 1.5, 12]} /><meshStandardMaterial color="#6B4423" roughness={0.9} /></mesh>
-      {[[0.45, 1.75, 0.1, -0.55], [-0.4, 1.8, -0.2, 0.6], [0.05, 1.8, 0.45, -0.3]].map(([x, y, z, rot], i) => (
-        <mesh key={i} position={[x, y, z]} rotation={[i === 2 ? 0.5 : 0.1, 0, rot]} castShadow><cylinderGeometry args={[0.07, 0.12, 1.0, 8]} /><meshStandardMaterial color="#6B4423" roughness={0.9} /></mesh>
+      <mesh position={[0, 0.5, 0]} castShadow><cylinderGeometry args={[0.13, 0.22, 1.0, 12]} /><meshStandardMaterial color="#6B4423" roughness={0.9} /></mesh>
+      {[[0.35, 1.2, 0.08, -0.55], [-0.3, 1.25, -0.15, 0.6], [0.04, 1.25, 0.32, -0.3]].map(([x, y, z, rot], i) => (
+        <mesh key={i} position={[x, y, z]} rotation={[i === 2 ? 0.5 : 0.1, 0, rot]} castShadow><cylinderGeometry args={[0.05, 0.09, 0.7, 8]} /><meshStandardMaterial color="#6B4423" roughness={0.9} /></mesh>
       ))}
       <mesh position={CENTER} scale={[CANOPY.rx * 0.9, CANOPY.ry * 0.9, CANOPY.rz * 0.9]} castShadow><sphereGeometry args={[1, 20, 16]} /><meshStandardMaterial color="#2C5F25" roughness={0.9} /></mesh>
-      <Leaves n={1100} center={CENTER} rx={CANOPY.rx} ry={CANOPY.ry} rz={CANOPY.rz} seed={11} />
+      <Leaves n={800} center={CENTER} rx={CANOPY.rx} ry={CANOPY.ry} rz={CANOPY.rz} seed={11} />
     </group>
   );
 }
@@ -80,32 +86,61 @@ function Tree() {
 function DecorTree({ x, z, s, seed }) {
   const c = useMemo(() => [0, CANOPY.cy, 0], []);
   const dots = useMemo(() => Array.from({ length: 9 }, (_, i) => {
-    const a = (i + seed) * 2.399963, h = 2.0 + ((i * 37 + seed) % 17) / 17 * 1.2;
+    const a = (i + seed) * 2.399963, h = CANOPY.cy - 0.45 + ((i * 37 + seed) % 17) / 17 * 0.9;
     const sr = CANOPY.rx * Math.sqrt(Math.max(0.05, 1 - ((h - CANOPY.cy) / CANOPY.ry) ** 2));
     return [Math.cos(a) * sr, h, Math.sin(a) * sr];
   }), [seed]);
   return (
     <group position={[x, 0, z]} scale={s}>
-      <mesh position={[0, 0.7, 0]}><cylinderGeometry args={[0.16, 0.28, 1.5, 8]} /><meshStandardMaterial color="#6B4423" /></mesh>
+      <mesh position={[0, 0.5, 0]}><cylinderGeometry args={[0.13, 0.22, 1.0, 8]} /><meshStandardMaterial color="#6B4423" /></mesh>
       <mesh position={c} scale={[CANOPY.rx * 0.9, CANOPY.ry * 0.9, CANOPY.rz * 0.9]}><sphereGeometry args={[1, 14, 10]} /><meshStandardMaterial color="#2C5F25" roughness={0.9} /></mesh>
-      <Leaves n={420} center={c} rx={CANOPY.rx} ry={CANOPY.ry} rz={CANOPY.rz} seed={seed} />
-      {dots.map((p, i) => <mesh key={i} position={p}><sphereGeometry args={[0.17, 10, 8]} /><meshStandardMaterial color="#F28C1B" roughness={0.5} /></mesh>)}
+      <Leaves n={300} center={c} rx={CANOPY.rx} ry={CANOPY.ry} rz={CANOPY.rz} seed={seed} />
+      {dots.map((p, i) => <mesh key={i} position={p}><sphereGeometry args={[0.13, 10, 8]} /><meshStandardMaterial color="#F28C1B" roughness={0.5} /></mesh>)}
     </group>
   );
 }
 const DECOR = [[-4.6, -2.6, 0.7, 3], [-3.2, -5.2, 0.6, 5], [4.4, -4.3, 0.72, 7], [5.4, -1.2, 0.62, 9], [-5.2, 1.6, 0.66, 13], [0.8, -5.6, 0.58, 17]];
 
-function Basket({ count }) {
-  const fill = Math.min(count, 12);
+// 귤 컨테이너: 제주에서 쓰는 주황색 플라스틱 수확 상자. 옆면에 세로 환기 구멍이 두 줄, 양 끝에 은색 손잡이가 있고, 두 개를 포개어 쌓는다.
+// 열매는 위 상자에 담기고 가장자리 위로 수북이 올라온다. (구멍 수백 개는 InstancedMesh 한 번에 그린다)
+const CW = 1.25, CD = 0.8, CH = 0.5, CT = 0.04; // 상자 길이·폭·높이·벽 두께
+function Crate({ y }) {
+  const orange = '#F57F17', lip = '#FF9A2E';
+  const slits = useRef();
+  useLayoutEffect(() => {
+    const m = new THREE.Matrix4(); let n = 0;
+    const put = (x, yy, z, rotY) => { m.compose(new THREE.Vector3(x, yy, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)), new THREE.Vector3(1, 1, 1)); slits.current.setMatrixAt(n++, m); };
+    for (const row of [0.14, 0.36]) { // 두 줄
+      for (let i = 0; i < 14; i++) { const x = -0.5 + i * (1.0 / 13); put(x, row, CD / 2, 0); put(x, row, -CD / 2, 0); } // 긴 옆면
+      for (let i = 0; i < 8; i++) { const z = -0.28 + i * (0.56 / 7); put(CW / 2, row, z, Math.PI / 2); put(-CW / 2, row, z, Math.PI / 2); } // 짧은 옆면
+    }
+    slits.current.count = n; slits.current.instanceMatrix.needsUpdate = true;
+  }, []);
+  return (
+    <group position={[0, y, 0]}>
+      <mesh position={[0, CT / 2, 0]} castShadow><boxGeometry args={[CW, CT, CD]} /><meshStandardMaterial color={orange} roughness={0.5} /></mesh>
+      {[-1, 1].map((s) => <mesh key={'z' + s} position={[0, CH / 2, s * (CD / 2 - CT / 2)]} castShadow><boxGeometry args={[CW, CH, CT]} /><meshStandardMaterial color={orange} roughness={0.5} /></mesh>)}
+      {[-1, 1].map((s) => <mesh key={'x' + s} position={[s * (CW / 2 - CT / 2), CH / 2, 0]} castShadow><boxGeometry args={[CT, CH, CD]} /><meshStandardMaterial color={orange} roughness={0.5} /></mesh>)}
+      {/* 윗가장자리 테두리 */}
+      <mesh position={[0, CH - 0.015, 0]}><boxGeometry args={[CW + 0.04, 0.03, CD + 0.04]} /><meshStandardMaterial color={lip} roughness={0.5} /></mesh>
+      <mesh position={[0, CH - 0.015, 0]}><boxGeometry args={[CW - 0.1, 0.034, CD - 0.1]} /><meshStandardMaterial color="#2b1a08" /></mesh>
+      {/* 환기 구멍: 어두운 세로 홈 */}
+      <instancedMesh ref={slits} args={[null, null, 80]}><boxGeometry args={[0.035, 0.14, 0.012]} /><meshStandardMaterial color="#6b2f00" /></instancedMesh>
+      {/* 은색 손잡이 (양 끝) */}
+      {[-1, 1].map((s) => (
+        <group key={'h' + s} position={[s * (CW / 2 + 0.02), CH - 0.1, 0]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]}><boxGeometry args={[0.03, 0.34, 0.03]} /><meshStandardMaterial color="#C9CED3" metalness={0.85} roughness={0.25} /></mesh>
+          {[-1, 1].map((q) => <mesh key={q} position={[s * -0.015, 0, q * 0.17]}><boxGeometry args={[0.05, 0.03, 0.03]} /><meshStandardMaterial color="#C9CED3" metalness={0.85} roughness={0.25} /></mesh>)}
+        </group>
+      ))}
+    </group>
+  );
+}
+function Basket() {
   return (
     <group position={[BASKET.x, 0, BASKET.z]}>
-      <mesh position={[0, 0.3, 0]} castShadow><cylinderGeometry args={[0.55, 0.42, 0.6, 20, 1, true]} /><meshStandardMaterial color="#B98A4E" side={THREE.DoubleSide} /></mesh>
-      <mesh position={[0, 0.02, 0]}><cylinderGeometry args={[0.42, 0.42, 0.04, 20]} /><meshStandardMaterial color="#8E6636" /></mesh>
-      {Array.from({ length: fill }, (_, i) => (
-        <mesh key={i} position={[Math.cos(i * 2.4) * 0.28, 0.2 + Math.floor(i / 5) * 0.2, Math.sin(i * 2.4) * 0.28]}>
-          <sphereGeometry args={[0.18, 14, 14]} /><meshStandardMaterial color="#F28C1B" />
-        </mesh>
-      ))}
+      <Crate y={0} />
+      <Crate y={CH} />
     </group>
   );
 }
@@ -161,21 +196,20 @@ export default function Harvest3D({ raining, picked, onPick, resetKey }) {
     return () => timers.forEach(clearTimeout);
   }, [picked?.all, picked?.stamp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const count = states.current.filter((s) => s.status === 'picked').length;
   return (
     <div role="img" aria-label="감귤나무에서 열매를 따서 바구니에 담는 3D 화면">
-      <Canvas shadows dpr={[1, 1.5]} camera={{ position: [5.2, 3.6, 6.2], fov: 45 }} style={{ height: 460, borderRadius: '1.1rem' }}>
+      <Canvas shadows dpr={[1, 1.5]} camera={{ position: [4.4, 2.7, 5.2], fov: 45 }} style={{ height: 460, borderRadius: '1.1rem' }}>
         <color attach="background" args={[raining ? '#B7C3D0' : '#CFE8F7']} />
         <ambientLight intensity={raining ? 0.7 : 0.9} />
         <directionalLight position={[5, 8, 4]} intensity={raining ? 0.8 : 1.6} castShadow />
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[7, 48]} /><meshStandardMaterial color={raining ? '#6E8F62' : '#7DB36B'} /></mesh>
         <Tree />
         {DECOR.map(([x, z, s, seed]) => <DecorTree key={seed} x={x} z={z} s={s} seed={seed} />)}
-        {FRUITS.map((p, i) => <Fruit key={i} home={p} state={states.current[i]} onPick={() => pick(i)} />)}
-        <Basket count={count} />
+        {FRUITS.map((p, i) => <Fruit key={i} home={p} land={SLOTS[i]} state={states.current[i]} onPick={() => pick(i)} />)}
+        <Basket />
         <Tent show={raining} />
         <Rain active={raining} />
-        <OrbitControls enablePan={false} minDistance={4} maxDistance={12} maxPolarAngle={Math.PI / 2.1} target={[0.8, 1.6, 0.5]} />
+        <OrbitControls enablePan={false} minDistance={4} maxDistance={12} maxPolarAngle={Math.PI / 2.1} target={[0.9, 0.95, 0.5]} />
       </Canvas>
     </div>
   );
