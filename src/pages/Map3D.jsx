@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { fetchWeather } from '../api/client.js';
 import Jeju3D, { PLACES } from '../components/Jeju3D.jsx';
 import WorkPill from '../components/WorkPill.jsx';
+import SketchfabModels from '../components/SketchfabModels.jsx';
 import { Loading, ErrorBox } from '../components/Status.jsx';
 
 const label = (d) => `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}`;
@@ -69,6 +70,7 @@ export default function Map3D() {
               </>
             ) : <div className="notice">{sel}의 예보를 가져오지 못했습니다. 다른 지역을 눌러 보세요.</div>}
           </div>
+          <SketchfabModels />
           <p className="notice mt-2 mb-0">기상청 단기예보(5km 격자) · 지형: 공개 고도 자료(AWS Terrain Tiles, SRTM 등)로 만든 실제 높이이고 높이는 2배쯤 과장했습니다 · 핀 위치는 대략적인 위치입니다. 이웃한 지역은 같은 값이 나올 수 있습니다.</p>
         </>
       )}
