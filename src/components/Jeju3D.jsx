@@ -35,8 +35,9 @@ const COAST = [[126.16, 33.31], [126.18, 33.37], [126.24, 33.42], [126.30, 33.47
 const temp = (d) => (d.tmn != null && d.tmx != null ? `${d.tmn}~${d.tmx}℃` : d.tmx != null ? `최고 ${d.tmx}℃` : d.tmn != null ? `최저 ${d.tmn}℃` : '정보 없음');
 const HEIGHT_SCALE = 0.0011; // 높이를 2배쯤 과장해서 입체감을 낸다 (한라산 약 2 단위)
 const SEA = -0.2;
-const yOf = (h) => (h > 0 ? 0.05 + h * HEIGHT_SCALE : SEA);
-const STOPS = [[0, [0.50, 0.75, 0.39]], [200, [0.37, 0.62, 0.27]], [700, [0.28, 0.47, 0.22]], [1300, [0.55, 0.42, 0.31]], [1800, [0.95, 0.95, 0.95]]]; // 낮은 곳 연두 → 높은 곳 갈색 → 꼭대기 흰색
+const hc = (h) => (h > 1100 ? 1100 + (h - 1100) * 0.45 : h); // 높은 곳은 눌러서 한라산이 뾰족한 원뿔이 되지 않게 한다 (실제 정상부는 넓고 완만하다)
+const yOf = (h) => (h > 0 ? 0.05 + hc(h) * HEIGHT_SCALE : SEA);
+const STOPS = [[0, [0.50, 0.75, 0.39]], [200, [0.37, 0.62, 0.27]], [700, [0.28, 0.47, 0.22]], [1300, [0.55, 0.58, 0.30]], [1800, [0.50, 0.44, 0.34]]]; // 낮은 곳 연두 → 높은 곳 누런 풀밭 → 정상 암석 색
 function colorOf(h) {
   for (let i = 1; i < STOPS.length; i++) if (h <= STOPS[i][0] || i === STOPS.length - 1) {
     const [h0, c0] = STOPS[i - 1], [h1, c1] = STOPS[i], k = Math.min(1, Math.max(0, (h - h0) / (h1 - h0)));
@@ -59,7 +60,7 @@ function Terrain({ t, raining }) {
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const h = t.data[r * cols + c], [x, z] = toXZ(t.lat1 - r * stepLat, t.lng0 + c * stepLng), i = (r * cols + c) * 3;
       pos.set([x, craterY(x, z, yOf(h), lv), z], i);
-      col.set(h > 0 ? (Math.hypot(x - HALLA[0], z - HALLA[1]) < CRATER_R * 0.8 ? [0.43, 0.35, 0.3] : colorOf(h)) : [0.3, 0.5, 0.6], i); // 분화구 안쪽은 어두운 현무암 색
+      col.set(h > 0 ? summitColor(x, z, h) : [0.3, 0.5, 0.6], i);
     }
     const idx = [];
     for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) {
@@ -181,37 +182,51 @@ function Clouds({ level, raining }) {
   ));
 }
 
-// 백록담: 한라산 정상의 분화구. 지형 격자(약 280m)로는 분화구가 보이지 않아서, 정상 둘레를 그릇 모양으로 만든다.
-// 정상 지형은 원뿔처럼 기울어 있어서 그대로 파면 물이 허공에 뜬다 → 바닥을 평평하게 깔고(바닥 반지름 FLOOR_R), 가장자리(CRATER_R)는 정상 높이로 맞춘 뒤,
-// 그 바깥은 원래 지형과 부드럽게 이어 붙인다. 물은 평평한 바닥에 딱 붙인다. 실제 크기(지름 약 500m)는 지도에서 너무 작아서 눈에 보이게 과장했다.
-const CRATER_R = 0.28; // 분화구 가장자리 반지름(지도 단위)
-const FLOOR_R = 0.13; // 평평한 바닥 반지름
-const CRATER_DEPTH = 0.2;
+// 한라산 정상과 백록담: 사진을 보면 정상은 뾰족한 원뿔이 아니라 넓고 평평한 봉우리이고, 백록담은 그 위의 넓은 분지다.
+// 바닥은 풀밭이고 호수는 한쪽에 치우쳐 있으며, 서북쪽 가장자리는 높은 암벽이다. 지형 격자(약 280m)로는 이 모양이 안 보여서 정상 둘레를 직접 빚는다:
+// ① 정상 둘레(PLATEAU_R)를 정상 높이로 눌러 평평하게 하고 ② 그 위에 분지(가장자리 CRATER_R, 평평한 바닥 FLOOR_R)를 파고 ③ 서북쪽 가장자리를 더 높게 올린다.
+// 물은 평평한 바닥에 붙인다. 실제 크기(지름 약 500m)는 지도에서 너무 작아서 눈에 보이게 과장했다.
+const PLATEAU_R = 0.8; // 평평하게 누르는 범위
+const CRATER_R = 0.34; // 분지 가장자리 반지름(지도 단위)
+const FLOOR_R = 0.2; // 평평한 바닥 반지름
+const CRATER_DEPTH = 0.13;
 const smooth = (v) => { const k = Math.min(1, Math.max(0, v)); return k * k * (3 - 2 * k); };
-// 정상 근처에서 가장 높은 칸의 높이를 가장자리 높이로, 거기서 CRATER_DEPTH 만큼 내려간 곳을 바닥으로 삼는다
 function craterLevels(t) {
   const sx = (t.lng1 - t.lng0) / (t.cols - 1), sy = (t.lat1 - t.lat0) / (t.rows - 1);
   let m = 0;
   for (let r = 0; r < t.rows; r++) for (let c = 0; c < t.cols; c++) {
     const [x, z] = toXZ(t.lat1 - r * sy, t.lng0 + c * sx);
-    if (Math.hypot(x - HALLA[0], z - HALLA[1]) < 0.6 && t.data[r * t.cols + c] > m) m = t.data[r * t.cols + c];
+    if (Math.hypot(x - HALLA[0], z - HALLA[1]) < 0.7 && t.data[r * t.cols + c] > m) m = t.data[r * t.cols + c];
   }
-  const rimY = yOf(m);
-  return { rimY, floorY: rimY - CRATER_DEPTH };
+  const plateauY = yOf(m * 0.96), rimY = plateauY + 0.02;
+  return { plateauY, rimY, floorY: rimY - CRATER_DEPTH };
 }
+// 서북쪽(지도에서 왼쪽 위)으로 얼마나 향했는지 0~1: 사진의 서북벽(높은 암벽) 방향
+const northwest = (dx, dz, dd) => (dd > 0 ? Math.max(0, (-dx - dz) / (Math.SQRT2 * dd)) : 0);
 function craterY(x, z, y, lv) {
-  const dd = Math.hypot(x - HALLA[0], z - HALLA[1]);
-  if (dd >= CRATER_R * 1.4) return y;
-  if (dd <= CRATER_R) return lv.floorY + (lv.rimY - lv.floorY) * smooth((dd - FLOOR_R) / (CRATER_R - FLOOR_R)); // 바닥 → 벽 → 가장자리
-  const w = smooth((dd - CRATER_R) / (CRATER_R * 0.4)); // 가장자리 바깥은 원래 지형으로 서서히
-  return lv.rimY * (1 - w) + y * w;
+  const dx = x - HALLA[0], dz = z - HALLA[1], dd = Math.hypot(dx, dz);
+  if (dd >= PLATEAU_R) return y;
+  const wP = smooth(1 - dd / PLATEAU_R) * 0.9, base = y * (1 - wP) + lv.plateauY * wP; // 정상부를 넓고 평평하게
+  if (dd >= CRATER_R * 1.5) return base;
+  const nw = northwest(dx, dz, dd), cliff = 0.07 * nw * nw; // 서북쪽 가장자리를 더 높게
+  if (dd <= CRATER_R) { const k = smooth((dd - FLOOR_R) / (CRATER_R - FLOOR_R)); return lv.floorY + (lv.rimY + cliff - lv.floorY) * k; } // 평평한 바닥 → 벽 → 가장자리
+  const w = smooth((dd - CRATER_R) / (CRATER_R * 0.5)); // 가장자리 바깥은 평평한 정상부와 이어 붙인다
+  return (lv.rimY + cliff) * (1 - w) + base * w;
+}
+// 색: 바닥은 풀밭, 벽은 어두운 현무암, 서북벽은 회색 암벽
+function summitColor(x, z, h) {
+  const dx = x - HALLA[0], dz = z - HALLA[1], dd = Math.hypot(dx, dz);
+  if (dd < FLOOR_R + 0.02) return [0.47, 0.64, 0.32];
+  if (dd < CRATER_R * 1.12) return northwest(dx, dz, dd) > 0.5 ? [0.4, 0.37, 0.36] : [0.33, 0.29, 0.27];
+  return colorOf(h);
 }
 function Crater({ t }) {
   const lv = useMemo(() => craterLevels(t), [t]);
   return (
     <group position={[HALLA[0], lv.floorY + 0.012, HALLA[1]]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[FLOOR_R - 0.015, 40]} /><meshStandardMaterial color="#2f8fb8" roughness={0.1} metalness={0.3} /></mesh>
-      <Html position={[0.55, 0.35, 0.3]} center distanceFactor={9} style={{ pointerEvents: "none" }}><div className="j3d-label j3d-halla"><strong>백록담</strong><span>분화구</span></div></Html>
+      {/* 호수는 바닥 한가운데가 아니라 한쪽에 치우친 타원 (사진 참고) */}
+      <mesh position={[-0.05, 0, 0.03]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.45, 0.95, 1]}><circleGeometry args={[0.095, 40]} /><meshStandardMaterial color="#2a7fb5" roughness={0.1} metalness={0.3} /></mesh>
+      <Html position={[0.8, 0.55, 0.35]} center distanceFactor={9} style={{ pointerEvents: 'none' }}><div className="j3d-label j3d-halla"><strong>백록담</strong><span>분화구</span></div></Html>
     </group>
   );
 }
