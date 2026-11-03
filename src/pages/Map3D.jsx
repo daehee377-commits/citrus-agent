@@ -14,12 +14,17 @@ export default function Map3D() {
   const [sel, setSel] = useState('제주시');
 
   // 한두 지역을 못 가져와도 나머지로 지도를 그린다 (못 가져온 핀은 회색)
+  // 먼저 도착한 지역부터 바로 지도에 반영한다 (11곳이 모두 올 때까지 빈 화면으로 기다리지 않는다)
+  const [pending, setPending] = useState(PLACES.length);
   useEffect(() => {
-    Promise.allSettled(PLACES.map((p) => fetchWeather(p.name).then((r) => [p.name, r.days]))).then((rs) => {
-      const ok = rs.filter((r) => r.status === 'fulfilled').map((r) => r.value);
-      if (!ok.length) { setError(rs[0]?.reason?.message ?? '날씨를 불러오지 못했습니다.'); return; }
-      setData(Object.fromEntries(ok));
+    let alive = true, failed = 0, firstError = '';
+    PLACES.forEach((p) => {
+      fetchWeather(p.name)
+        .then((r) => { if (alive) setData((d) => ({ ...(d ?? {}), [p.name]: r.days })); })
+        .catch((e) => { failed += 1; firstError ||= e.message; })
+        .finally(() => { if (alive) { setPending((n) => n - 1); if (failed === PLACES.length) setError(firstError || '날씨를 불러오지 못했습니다.'); } });
     });
+    return () => { alive = false; };
   }, []);
 
   const days = data?.['제주시'] ?? Object.values(data ?? {})[0] ?? [];
@@ -27,7 +32,7 @@ export default function Map3D() {
   const shown = Object.values(byPlace).filter(Boolean);
   const okCount = shown.filter((d) => d.work === '수확 가능').length;
   const rainCount = shown.filter((d) => d.work === '포장 작업만').length;
-  const missing = PLACES.length - shown.length;
+  const missing = pending > 0 ? 0 : PLACES.length - shown.length;
   const raining = rainCount > 0;
   const cur = byPlace[sel];
 
@@ -49,7 +54,8 @@ export default function Map3D() {
           <div className="d-flex flex-wrap gap-2 mb-3">
             <span className="pill pill-ok"><i className="bi bi-basket" />수확 가능 {okCount}곳</span>
             <span className="pill pill-rain"><i className="bi bi-umbrella" />포장 작업만 {rainCount}곳</span>
-            {missing > 0 && <span className="pill pill-unknown"><i className="bi bi-question-circle" />예보 없음 {missing}곳</span>}
+            {pending > 0 && <span className="pill pill-unknown"><i className="bi bi-arrow-repeat" />{PLACES.length - pending}/{PLACES.length}곳 불러오는 중</span>}
+            {missing > 0 &&<span className="pill pill-unknown"><i className="bi bi-question-circle" />예보 없음 {missing}곳</span>}
           </div>
           <Jeju3D byPlace={byPlace} raining={raining} selected={sel} onSelect={setSel} />
           <div className="card-soft p-3 mt-3">
@@ -63,7 +69,7 @@ export default function Map3D() {
               </>
             ) : <div className="notice">{sel}의 예보를 가져오지 못했습니다. 다른 지역을 눌러 보세요.</div>}
           </div>
-          <p className="notice mt-2 mb-0">기상청 단기예보(5km 격자) · 핀 위치와 해안선은 대략적인 위치를 단순화한 것입니다. 이웃한 지역은 같은 값이 나올 수 있습니다.</p>
+          <p className="notice mt-2 mb-0">기상청 단기예보(5km 격자) · 지형: 공개 고도 자료(AWS Terrain Tiles, SRTM 등)로 만든 실제 높이이고 높이는 2배쯤 과장했습니다 · 핀 위치는 대략적인 위치입니다. 이웃한 지역은 같은 값이 나올 수 있습니다.</p>
         </>
       )}
     </>
