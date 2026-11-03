@@ -1,6 +1,6 @@
 // 제주섬 3D: 해안선 + 한라산 + 제주시·서귀포시와 9개 읍·면 핀. 날씨 API의 "수확 가능 / 포장 작업만"에 따라 핀 색과 모양이 바뀌고,
 // 포장 작업만(비 예보)인 날에는 빗방울이 내린다. 핀을 누르면 그 지역이 선택된다. 마우스로 돌리고 확대할 수 있다. (three.js + @react-three/fiber)
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import WorkPill from './WorkPill.jsx';
@@ -231,6 +231,50 @@ function Crater({ t }) {
   );
 }
 
+// 귤 과수원: 감귤은 주로 바닷가에서 해발 수백 m 아래의 낮은 지대, 특히 서귀포 쪽에서 많이 재배된다. 그 지대에 귤나무(줄기 + 둥근 잎 + 주황 열매)를 흩뿌린다.
+// 실제 과수원 위치가 아니라 재배지 분포를 짐작해서 그린 그림이다. 나무 700그루를 InstancedMesh 세 개(줄기·잎·열매)로 한 번에 그려서 가볍다.
+const ORCHARD_N = 700;
+function orchardSpots(t) {
+  let s = 20261103; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; // 매번 같은 배치가 되도록 고정된 난수
+  const out = [];
+  for (let tries = 0; tries < 40000 && out.length < ORCHARD_N; tries++) {
+    const lat = t.lat0 + rnd() * (t.lat1 - t.lat0), lng = t.lng0 + rnd() * (t.lng1 - t.lng0), h = heightAt(t, lat, lng);
+    if (h < 15 || h > 450) continue; // 바닷가 바로 옆과 높은 산지는 뺀다
+    const [x, z] = toXZ(lat, lng);
+    if (Math.hypot(x - HALLA[0], z - HALLA[1]) < PLATEAU_R) continue; // 한라산 정상부에는 심지 않는다
+    if (rnd() > (lat < 33.37 ? 1 : 0.35)) continue; // 남쪽(서귀포 쪽)을 더 촘촘하게
+    out.push([x, yOf(h), z, 0.8 + rnd() * 0.5, rnd()]);
+  }
+  return out;
+}
+function Orchard({ t }) {
+  const spots = useMemo(() => orchardSpots(t), [t]);
+  const trunks = useRef(), crowns = useRef(), fruits = useRef();
+  useLayoutEffect(() => {
+    const m = new THREE.Matrix4(), c = new THREE.Color(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
+    let f = 0;
+    spots.forEach(([x, y, z, k, r], i) => {
+      m.compose(new THREE.Vector3(x, y + 0.03 * k, z), q, new THREE.Vector3(k, k, k)); trunks.current.setMatrixAt(i, m);
+      m.compose(new THREE.Vector3(x, y + 0.085 * k, z), q, new THREE.Vector3(0.085 * k, 0.062 * k, 0.085 * k)); crowns.current.setMatrixAt(i, m);
+      c.setHSL(0.28 + 0.05 * r, 0.5, 0.2 + 0.1 * r); crowns.current.setColorAt(i, c);
+      for (let j = 0; j < 3; j++) { // 열매 세 개를 잎 겉면에
+        const a = (r * 6.28) + j * 2.1, rr = 0.08 * k;
+        m.compose(new THREE.Vector3(x + Math.cos(a) * rr, y + (0.075 + 0.02 * j) * k, z + Math.sin(a) * rr), q, one);
+        fruits.current.setMatrixAt(f++, m);
+      }
+    });
+    for (const ref of [trunks, crowns, fruits]) ref.current.instanceMatrix.needsUpdate = true;
+    crowns.current.instanceColor.needsUpdate = true;
+  }, [spots]);
+  return (
+    <group>
+      <instancedMesh ref={trunks} args={[null, null, spots.length]}><cylinderGeometry args={[0.009, 0.014, 0.06, 6]} /><meshStandardMaterial color="#6B4423" /></instancedMesh>
+      <instancedMesh ref={crowns} args={[null, null, spots.length]}><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial roughness={0.8} /></instancedMesh>
+      <instancedMesh ref={fruits} args={[null, null, spots.length * 3]}><sphereGeometry args={[0.02, 6, 5]} /><meshStandardMaterial color="#F28C1B" /></instancedMesh>
+    </group>
+  );
+}
+
 // 화면이 좁을수록(휴대폰) 카메라를 뒤로 물려서 섬 전체가 보이게 한다
 function Fit() {
   const { camera, size } = useThree();
@@ -313,7 +357,7 @@ function Pin({ place, day, selected, onSelect, terrain }) {
   );
 }
 
-export default function Jeju3D({ byPlace = {}, raining = false, selected = '', onSelect = () => {} }) {
+export default function Jeju3D({ byPlace = {}, raining = false, selected = '', onSelect = () => {}, showTrees = true }) {
   // 지형 파일을 못 읽으면(null) 예전의 단순한 해안선 모양으로 보여 준다
   const [terrain, setTerrain] = useState(null);
   useEffect(() => { fetch('/data/jeju-terrain.json').then((r) => (r.ok ? r.json() : Promise.reject())).then(setTerrain).catch(() => {}); }, []);
@@ -328,6 +372,7 @@ export default function Jeju3D({ byPlace = {}, raining = false, selected = '', o
       <Sea raining={raining} terrain={terrain} />
       <Clouds level={cloudLevel} raining={raining} />
       {terrain && <Crater t={terrain} />}
+      {terrain && showTrees && <Orchard t={terrain} />}
       {terrain ? <Terrain t={terrain} raining={raining} /> : (
         <>
           <Island raining={raining} />

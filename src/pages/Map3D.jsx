@@ -12,7 +12,8 @@ export default function Map3D() {
   const [data, setData] = useState(null); // { 지역이름: 날짜별 예보 배열 }
   const [error, setError] = useState('');
   const [idx, setIdx] = useState(0);
-  const [sel, setSel] = useState(''); // 처음에는 아무 지역도 열려 있지 않다 (핀을 누르면 그 지역 날씨 카드가 열린다)
+  const [sel, setSel] = useState('');
+  const [trees, setTrees] = useState(true); // 귤나무 켜고 끄기 // 처음에는 아무 지역도 열려 있지 않다 (핀을 누르면 그 지역 날씨 카드가 열린다)
 
   // 한두 지역을 못 가져와도 나머지로 지도를 그린다 (못 가져온 핀은 회색)
   // 먼저 도착한 지역부터 바로 지도에 반영한다 (11곳이 모두 올 때까지 빈 화면으로 기다리지 않는다)
@@ -56,8 +57,9 @@ export default function Map3D() {
             <span className="pill pill-rain"><i className="bi bi-umbrella" />포장 작업만 {rainCount}곳</span>
             {pending > 0 && <span className="pill pill-unknown"><i className="bi bi-arrow-repeat" />{PLACES.length - pending}/{PLACES.length}곳 불러오는 중</span>}
             {missing > 0 &&<span className="pill pill-unknown"><i className="bi bi-question-circle" />예보 없음 {missing}곳</span>}
+            <button type="button" className={`btn btn-sm ms-auto ${trees ? 'btn-leaf' : 'btn-outline-secondary'}`} onClick={() => setTrees((v) => !v)} aria-pressed={trees}>🍊 귤나무 {trees ? '숨기기' : '보기'}</button>
           </div>
-          <Jeju3D byPlace={byPlace} raining={raining} selected={sel} onSelect={setSel} />
+          <Jeju3D byPlace={byPlace} raining={raining} selected={sel} onSelect={setSel} showTrees={trees} />
           <div className="card-soft p-3 mt-3">
             {!sel ? (
               <div className="notice"><i className="bi bi-hand-index me-1" />지도의 핀이나 지역 이름을 눌러 보세요. 그 지역의 날씨 카드가 열리고, 여기에 5일 예보가 나옵니다.</div>
@@ -78,7 +80,7 @@ export default function Map3D() {
             )}
           </div>
           <SketchfabModels />
-          <p className="notice mt-2 mb-0">기상청 단기예보(5km 격자) · 지형: 공개 고도 자료(AWS Terrain Tiles, SRTM 등)로 만든 실제 높이이고 높이는 2배쯤 과장했습니다 · 핀 위치는 대략적인 위치입니다. 이웃한 지역은 같은 값이 나올 수 있습니다.</p>
+          <p className="notice mt-2 mb-0">기상청 단기예보(5km 격자) · 지형: 공개 고도 자료(AWS Terrain Tiles, SRTM 등)로 만든 실제 높이이고 높이는 2배쯤 과장했습니다 · 핀 위치는 대략적인 위치입니다. 귤나무는 감귤 재배지(낮은 지대, 특히 서귀포 쪽)를 짐작해 흩어 놓은 그림이고 실제 과수원 위치가 아닙니다. 이웃한 지역은 같은 값이 나올 수 있습니다.</p>
         </>
       )}
     </>
