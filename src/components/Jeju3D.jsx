@@ -309,26 +309,52 @@ function Rain({ active }) {
   );
 }
 
-// 핀: 수확 가능이면 초록 핀 + 감귤 3개, 포장 작업만이면 파란 핀 + 천막(원뿔), 예보를 못 가져온 곳은 회색. 선택된 핀은 노란 고리가 둘러싼다.
+// 핀 = 귤 과수원 한 곳: 귤나무(열매가 가지에 붙어 있다) + 그 옆에 포개어 쌓은 귤 컨테이너(딴 귤이 담겨 있다). 땅에 떨어진 귤은 없다.
+// 발판 색이 날씨 판단이다: 초록 = 수확 가능, 파랑 = 포장 작업만(컨테이너 위에 천막이 쳐진다), 회색 = 예보 없음. 선택된 핀은 노란 고리가 둘러싼다.
+const CRATE_ORANGE = '#F57F17';
+const CROWN_C = 0.36; // 잎 중심 높이
+const PIN_FRUITS = Array.from({ length: 9 }, (_, i) => { // 잎 겉면에 매달린 열매 자리
+  const az = i * 2.399963, phi = 0.45 + (((i * 5) % 7) / 7) * 1.05;
+  return [Math.cos(az) * Math.sin(phi) * 0.255, CROWN_C + Math.cos(phi) * 0.187, Math.sin(az) * Math.sin(phi) * 0.255];
+});
+const CRATE_FRUITS = [[-0.08, 0.2, -0.04], [0, 0.2, 0.04], [0.08, 0.2, -0.04], [-0.04, 0.245, 0.02], [0.04, 0.245, -0.02], [0, 0.285, 0]]; // 컨테이너 안에 수북이 쌓인 귤
 function Pin({ place, day, selected, onSelect, terrain }) {
   const [x, z] = place.pos;
   const y = terrain ? yOf(heightAt(terrain, place.lat, place.lng)) : 0.12; // 지형이 있으면 그 높이에 핀을 세운다
   const ok = day?.work === '수확 가능';
-  const color = !day ? '#999999' : ok ? '#2F6B3C' : '#4A7BB5';
+  const base = !day ? '#9AA0A6' : ok ? '#3E8E4E' : '#4A7BB5';
   const big = place.name === '제주시' || place.name === '서귀포시';
   return (
-    <group position={[x, y, z]} scale={big ? 1 : 0.7} onClick={(e) => { e.stopPropagation(); onSelect(place.name); }}
+    <group position={[x, y, z]} scale={big ? 1 : 0.75} onClick={(e) => { e.stopPropagation(); onSelect(place.name); }}
       onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}>
-      <mesh position={[0, 0.5, 0]}><cylinderGeometry args={[0.04, 0.04, 1, 8]} /><meshStandardMaterial color="#5A4A3A" /></mesh>
-      <mesh position={[0, 1.1, 0]}><sphereGeometry args={[0.24, 24, 24]} /><meshStandardMaterial color={color} /></mesh>
-      {selected && <mesh position={[0, 1.1, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.4, 0.05, 12, 32]} /><meshStandardMaterial color="#FFC83D" emissive="#FFC83D" emissiveIntensity={0.4} /></mesh>}
-      {ok && [[0.45, 0.14, 0.2], [-0.4, 0.14, 0.3], [0.1, 0.14, -0.45]].map((p, i) => (
-        <mesh key={i} position={p}><sphereGeometry args={[0.14, 16, 16]} /><meshStandardMaterial color="#F08A1C" /></mesh>
-      ))}
-      {day && !ok && <mesh position={[0.45, 0.25, 0.2]}><coneGeometry args={[0.32, 0.5, 4]} /><meshStandardMaterial color="#4A7BB5" /></mesh>}
+      {/* 발판 (날씨 판단 색) */}
+      <mesh position={[0, 0.015, 0]}><cylinderGeometry args={[0.62, 0.62, 0.03, 32]} /><meshStandardMaterial color={base} roughness={0.8} /></mesh>
+      {selected && <mesh position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.64, 0.03, 10, 40]} /><meshStandardMaterial color="#FFC83D" emissive="#FFC83D" emissiveIntensity={0.5} /></mesh>}
+      {/* 귤나무: 짧은 줄기 + 납작하고 둥근 잎 + 가지에 붙은 열매 */}
+      <mesh position={[0, 0.14, 0]}><cylinderGeometry args={[0.035, 0.05, 0.24, 8]} /><meshStandardMaterial color="#6B4423" /></mesh>
+      <mesh position={[0, CROWN_C, 0]} scale={[0.26, 0.19, 0.26]}><sphereGeometry args={[1, 18, 14]} /><meshStandardMaterial color="#2C5F25" roughness={0.9} /></mesh>
+      {day && PIN_FRUITS.map((p, i) => <mesh key={i} position={p}><sphereGeometry args={[0.04, 10, 8]} /><meshStandardMaterial color="#F28C1B" roughness={0.5} /></mesh>)}
+      {/* 귤 컨테이너 두 개를 포개어 쌓고, 위 컨테이너에 귤이 수북이 담긴다 */}
+      <group position={[0.4, 0, 0.1]}>
+        {[0.055, 0.165].map((cy) => (
+          <group key={cy}>
+            <mesh position={[0, cy, 0]}><boxGeometry args={[0.3, 0.11, 0.2]} /><meshStandardMaterial color={CRATE_ORANGE} roughness={0.5} /></mesh>
+            <mesh position={[0, cy + 0.045, 0]}><boxGeometry args={[0.32, 0.025, 0.22]} /><meshStandardMaterial color="#FF9A2E" roughness={0.5} /></mesh>
+            {[-1, 1].map((s) => <mesh key={s} position={[s * 0.158, cy + 0.02, 0]}><boxGeometry args={[0.02, 0.025, 0.09]} /><meshStandardMaterial color="#C9CED3" metalness={0.85} roughness={0.25} /></mesh>)}
+          </group>
+        ))}
+        {day && CRATE_FRUITS.map((p, i) => <mesh key={i} position={p}><sphereGeometry args={[0.038, 10, 8]} /><meshStandardMaterial color="#F28C1B" roughness={0.5} /></mesh>)}
+        {/* 비 예보(포장 작업만): 컨테이너 위에 천막 */}
+        {day && !ok && (
+          <group>
+            {[[-0.2, -0.16], [0.2, -0.16], [-0.2, 0.16], [0.2, 0.16]].map(([px, pz]) => <mesh key={px + ',' + pz} position={[px, 0.22, pz]}><cylinderGeometry args={[0.008, 0.008, 0.44, 6]} /><meshStandardMaterial color="#6A5A48" /></mesh>)}
+            <mesh position={[0, 0.5, 0]} rotation={[0, Math.PI / 4, 0]}><coneGeometry args={[0.36, 0.17, 4]} /><meshStandardMaterial color="#4A7BB5" /></mesh>
+          </group>
+        )}
+      </group>
       {/* 이름표도 눌러서 열 수 있다 (핀이 작아서 이름표를 누르는 사람이 많다). 선택되면 이름표 자리에 날씨 카드가 열린다.
           Html 은 하나만 두고 안의 내용만 바꾼다 (Html 을 켰다 껐다 하면 React 오류가 난다) */}
-      <Html position={[0, 1.75, 0]} center distanceFactor={9} zIndexRange={selected ? [20, 10] : [16, 0]}>
+      <Html position={[0, 0.95, 0]} center distanceFactor={9} zIndexRange={selected ? [20, 10] : [16, 0]}>
         {selected ? (
           <div className="j3d-pop" style={{ transform: `translate(${Math.max(-45, Math.min(45, -place.pos[0] * 9))}%, -30%)` }} role="dialog" aria-label={`${place.name} 날씨`}>
             <button type="button" className="j3d-close" aria-label="닫기" onClick={(e) => { e.stopPropagation(); onSelect(''); }}>×</button>
