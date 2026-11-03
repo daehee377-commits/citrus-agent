@@ -6,6 +6,9 @@ export default function handler(req, res) {
   res.status(200).json({
     commit: (process.env.VERCEL_GIT_COMMIT_SHA ?? 'local').slice(0, 7),
     env: process.env.VERCEL_ENV ?? 'local',
+    // 환경변수가 들어갔는지만 true/false 로 알려 준다 (값은 절대 내보내지 않는다)
+    model: { provider: process.env.MODEL_PROVIDER || 'gemini', name: process.env.MODEL_NAME || '(기본값)' },
+    keys: Object.fromEntries(['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'DATA_GO_KR_KEY', 'KAKAO_REST_KEY', 'NCPMS_API_KEY', 'KAMIS_API_KEY', 'KAMIS_API_ID', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'].map((k) => [k, Boolean(process.env[k])])),
     routing: {
       '요즘 감귤 시세 어때?': sample('요즘 감귤 시세 어때?'),
       '이번 주 수확 가능한 날이 언제야?': sample('이번 주 수확 가능한 날이 언제야?'),
