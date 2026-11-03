@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import WorkPill from './WorkPill.jsx';
+import { Farmer, Surfer, Plane } from './Figures.jsx';
 import * as THREE from 'three';
 
 const K = 16; // 위도·경도 1도를 3D 길이로 바꾸는 배율
@@ -90,6 +91,12 @@ function Island({ raining }) {
 // 파도가 섬(땅의 가장 낮은 높이 0.05)을 덮지 않도록 진폭을 작게 잡았다. "동작 줄이기" 설정을 켠 사람에게는 멈춘 바다를 보여 준다.
 const SEA_LEVEL = -0.09;
 const WAVES = [[0.9, 0.3, 0.04, 1.4], [-0.4, 1.1, 0.03, 1.1], [1.6, -0.8, 0.018, 2.0], [0.5, 2.2, 0.01, 2.6]]; // [x방향, z방향, 높이, 속도]
+// 그 자리·그 시각의 바다 높이와 기울기: 바다 그림(Sea)과 서퍼가 같은 식을 쓰므로 서퍼가 파도 위에 정확히 얹힌다.
+function waveAt(x, z, t, k) {
+  let h = 0, dx = 0, dz = 0;
+  for (const w of WAVES) { const ph = w[0] * x + w[1] * z + w[3] * t, s = Math.sin(ph) * w[2] * k, c = Math.cos(ph) * w[2] * k; h += s; dx += c * w[0]; dz += c * w[1]; }
+  return { y: SEA_LEVEL + h, dx, dz };
+}
 const SEA_STOPS = [[0, [0.56, 0.88, 0.85]], [4, [0.3, 0.72, 0.88]], [14, [0.2, 0.62, 0.88]], [40, [0.13, 0.46, 0.75]]]; // 땅에서의 거리(칸) → 색
 function seaColor(d) {
   for (let i = 1; i < SEA_STOPS.length; i++) if (d <= SEA_STOPS[i][0] || i === SEA_STOPS.length - 1) {
@@ -334,6 +341,8 @@ function Pin({ place, day, selected, onSelect, terrain }) {
       <mesh position={[0, 0.14, 0]}><cylinderGeometry args={[0.035, 0.05, 0.24, 8]} /><meshStandardMaterial color="#6B4423" /></mesh>
       <mesh position={[0, CROWN_C, 0]} scale={[0.26, 0.19, 0.26]}><sphereGeometry args={[1, 18, 14]} /><meshStandardMaterial color="#2C5F25" roughness={0.9} /></mesh>
       {day && PIN_FRUITS.map((p, i) => <mesh key={i} position={p}><sphereGeometry args={[0.04, 10, 8]} /><meshStandardMaterial color="#F28C1B" roughness={0.5} /></mesh>)}
+      {/* 날씨에 따라: 수확 가능이면 나무의 귤을 따서 컨테이너에 담고, 비 예보면 천막 아래에서 포장한다 */}
+      {day && <Farmer mode={ok ? 'pick' : 'pack'} position={[0.3, 0, -0.22]} scale={0.3} yawTree={-0.97} yawCrate={0.3} phase={place.name.length * 0.7} />}
       {/* 귤 컨테이너 두 개를 포개어 쌓고, 위 컨테이너에 귤이 수북이 담긴다 */}
       <group position={[0.4, 0, 0.1]}>
         {[0.055, 0.165].map((cy) => (
@@ -388,6 +397,7 @@ export default function Jeju3D({ byPlace = {}, raining = false, selected = '', o
   const [terrain, setTerrain] = useState(null);
   useEffect(() => { fetch('/data/jeju-terrain.json').then((r) => (r.ok ? r.json() : Promise.reject())).then(setTerrain).catch(() => {}); }, []);
   const peak = terrain ? yOf(1700) + 0.45 : 1.9;
+  const sample = (x, z, t) => waveAt(x, z, t, raining ? 1.5 : 1); // 서퍼가 서 있는 자리의 바다 높이
   const skies = Object.values(byPlace).filter(Boolean).map((d) => SKY_LEVEL[d.sky]).filter((v) => v != null);
   const cloudLevel = skies.length ? skies.reduce((x, y) => x + y, 0) / skies.length : 0.4; // 11곳 하늘 상태의 평균
   return (
@@ -397,6 +407,11 @@ export default function Jeju3D({ byPlace = {}, raining = false, selected = '', o
       <directionalLight position={[6, 10, 5]} intensity={raining ? 0.6 : 1.1} />
       <Sea raining={raining} terrain={terrain} />
       <Clouds level={cloudLevel} raining={raining} />
+      {/* 파도를 타는 서퍼 두 명(남쪽 바다와 동쪽 바다)과 하늘을 가로지르는 비행기 두 대. 크기는 눈에 보이게 과장했다 */}
+      <Surfer from={toXZ(33.18, 126.33)} to={toXZ(33.18, 126.5)} sample={sample} phase={0} />
+      <Surfer from={toXZ(33.37, 126.99)} to={toXZ(33.27, 126.99)} sample={sample} phase={3} board="#2A9D8F" suit="#B23A48" />
+      <Plane y={3.3} z={-6.5} dir={1} phase={0} />
+      <Plane y={4.2} z={-8.5} dir={-1} phase={17} scale={0.85} />
       {terrain && <Crater t={terrain} />}
       {terrain && showTrees && <Orchard t={terrain} />}
       {terrain ? <Terrain t={terrain} raining={raining} /> : (

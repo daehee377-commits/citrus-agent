@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { Farmer } from './Figures.jsx';
 
 const BASKET = new THREE.Vector3(2.4, 0.35, 1.2);
 const FLIGHT = 0.9; // 열매가 상자까지 날아가는 시간(초)
@@ -204,6 +205,7 @@ export default function Harvest3D({ raining, picked, onPick, resetKey }) {
         <directionalLight position={[5, 8, 4]} intensity={raining ? 0.8 : 1.6} castShadow />
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[7, 48]} /><meshStandardMaterial color={raining ? '#6E8F62' : '#7DB36B'} /></mesh>
         <Tree />
+        <Farmer mode="pick" position={[1.3, 0, 1.25]} scale={1.15} yawTree={-2.33} yawCrate={1.62} />{/* 나무의 귤을 따서 컨테이너에 담는 농부 */}
         {DECOR.map(([x, z, s, seed]) => <DecorTree key={seed} x={x} z={z} s={s} seed={seed} />)}
         {FRUITS.map((p, i) => <Fruit key={i} home={p} land={SLOTS[i]} state={states.current[i]} onPick={() => pick(i)} />)}
         <Basket />
