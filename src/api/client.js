@@ -1,6 +1,7 @@
 // 화면 → /api 호출 함수 모음. 비밀 키는 서버에만 있고 여기에는 없다.
 async function getJson(url) {
-  const r = await fetch(url);
+  // 인터넷이 끊기거나 서버가 꺼져 있으면 브라우저가 영어 "Failed to fetch"를 던진다 → 쉬운 한국어로 바꾼다
+  const r = await fetch(url).catch(() => { throw new Error('서버에 연결하지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.'); });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || '데이터를 가져오지 못했습니다.');
   return data;
