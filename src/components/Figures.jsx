@@ -109,3 +109,63 @@ export function Plane({ y = 3.4, z = -6.5, dir = 1, speed = 0.9, phase = 0, span
     </group>
   );
 }
+
+// 새 한 마리: 길쭉한 몸통 + 머리·부리 + 좌우 날개. 날개는 몸 옆 축(wingL·wingR 그룹)을 중심으로 위아래로 퍼덕인다. 날개폭 약 0.28 (눈에 보이게 과장).
+function BirdModel({ wingL, wingR, color = '#F4F6F8', tip = '#6B7580' }) {
+  return (
+    <group>
+      <mesh scale={[0.05, 0.04, 0.12]}><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial color={color} roughness={0.7} /></mesh>
+      <mesh position={[0, 0.015, 0.11]}><sphereGeometry args={[0.032, 8, 6]} /><meshStandardMaterial color={color} roughness={0.7} /></mesh>
+      <mesh position={[0, 0.012, 0.15]} rotation={[Math.PI / 2, 0, 0]}><coneGeometry args={[0.012, 0.045, 5]} /><meshStandardMaterial color="#F2A81D" /></mesh>
+      <mesh position={[0, 0, -0.13]} scale={[0.05, 0.008, 0.07]}><sphereGeometry args={[1, 6, 4]} /><meshStandardMaterial color={color} /></mesh>
+      {[[wingL, -1], [wingR, 1]].map(([ref, s]) => (
+        <group key={s} ref={ref} position={[s * 0.03, 0.01, 0.01]}>
+          <mesh position={[s * 0.07, 0, 0]}><boxGeometry args={[0.14, 0.008, 0.09]} /><meshStandardMaterial color={color} roughness={0.7} /></mesh>
+          <mesh position={[s * 0.15, 0, -0.01]}><boxGeometry args={[0.07, 0.007, 0.06]} /><meshStandardMaterial color={tip} roughness={0.7} /></mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+const flap = (t, i) => Math.sin(t * 11 + i * 1.7) * 0.7; // 날갯짓 각도
+
+// 갈매기 떼: 한 점(center)을 둘러싸고 원을 그리며 난다. 새마다 높이·반지름·속도가 조금씩 달라 한 덩어리로 움직이지 않는다. dir 1 = 시계 반대 방향, -1 = 반대.
+export function Gulls({ center = [0, 0], radius = 2, y = 1.3, n = 5, speed = 0.35, phase = 0, dir = 1 }) {
+  const roots = useRef([]), wl = useRef([]), wr = useRef([]);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    for (let i = 0; i < n; i++) {
+      const r = roots.current[i]; if (!r) continue;
+      const a = t * speed * dir + i * 0.6 + phase, rad = radius * (1 + 0.13 * Math.sin(i * 2.3));
+      r.rotation.order = 'YXZ';
+      r.position.set(center[0] + Math.cos(a) * rad, y + 0.14 * Math.sin(t * 0.9 + i * 1.3) + (i % 3) * 0.08, center[1] + Math.sin(a) * rad);
+      r.rotation.set(0, Math.atan2(-Math.sin(a) * dir, Math.cos(a) * dir), -0.3 * dir); // 진행 방향을 보고, 원의 안쪽으로 살짝 기운다
+      wl.current[i].rotation.z = flap(t, i); wr.current[i].rotation.z = -flap(t, i);
+    }
+  });
+  return Array.from({ length: n }, (_, i) => (
+    <group key={i} ref={(el) => { roots.current[i] = el; }}>
+      <BirdModel wingL={{ get current() { return wl.current[i]; }, set current(v) { wl.current[i] = v; } }} wingR={{ get current() { return wr.current[i]; }, set current(v) { wr.current[i] = v; } }} />
+    </group>
+  ));
+}
+
+// V자 대형으로 날아가는 새 무리: 맨 앞 한 마리를 따라 양옆 뒤쪽으로 줄지어 하늘을 가로지른다. 끝에 닿으면 반대편에서 다시 나타난다.
+export function VFlock({ y = 2.7, z = -3.5, dir = 1, speed = 0.7, phase = 0, n = 7, span = 17, color = '#3C4650', tip = '#1D242B' }) {
+  const roots = useRef([]), wl = useRef([]), wr = useRef([]);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime, p = (t * speed + phase) % (2 * span), lead = dir > 0 ? -span + p : span - p;
+    for (let i = 0; i < n; i++) {
+      const r = roots.current[i]; if (!r) continue;
+      const row = Math.ceil(i / 2), side = i === 0 ? 0 : i % 2 ? 1 : -1; // 0번이 선두, 이후 양옆으로 한 줄씩 뒤에
+      r.position.set(lead - dir * row * 0.3, y + 0.08 * Math.sin(t * 1.3 + row), z + side * row * 0.24);
+      r.rotation.set(0, dir > 0 ? Math.PI / 2 : -Math.PI / 2, 0);
+      wl.current[i].rotation.z = flap(t * 0.8, row); wr.current[i].rotation.z = -flap(t * 0.8, row);
+    }
+  });
+  return Array.from({ length: n }, (_, i) => (
+    <group key={i} ref={(el) => { roots.current[i] = el; }}>
+      <BirdModel color={color} tip={tip} wingL={{ get current() { return wl.current[i]; }, set current(v) { wl.current[i] = v; } }} wingR={{ get current() { return wr.current[i]; }, set current(v) { wr.current[i] = v; } }} />
+    </group>
+  ));
+}

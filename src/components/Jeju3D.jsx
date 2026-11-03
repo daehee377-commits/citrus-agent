@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import WorkPill from './WorkPill.jsx';
-import { Farmer, Surfer, Plane } from './Figures.jsx';
+import { Farmer, Surfer, Plane, Gulls, VFlock } from './Figures.jsx';
 import * as THREE from 'three';
 
 const K = 16; // 위도·경도 1도를 3D 길이로 바꾸는 배율
@@ -412,6 +412,11 @@ export default function Jeju3D({ byPlace = {}, raining = false, selected = '', o
       <Surfer from={toXZ(33.37, 126.99)} to={toXZ(33.27, 126.99)} sample={sample} phase={3} board="#2A9D8F" suit="#B23A48" />
       <Plane y={3.3} z={-6.5} dir={1} phase={0} />
       <Plane y={4.2} z={-8.5} dir={-1} phase={17} scale={0.85} />
+      {/* 날아다니는 새: 해안을 도는 갈매기 세 무리와 V자로 하늘을 가로지르는 새 한 무리 */}
+      <Gulls center={toXZ(33.23, 126.55)} radius={2.1} y={1.15} n={5} />
+      <Gulls center={toXZ(33.56, 126.45)} radius={1.7} y={1.3} n={4} phase={2} dir={-1} />
+      <Gulls center={toXZ(33.4, 126.97)} radius={1.4} y={1.2} n={4} phase={4} />
+      <VFlock y={2.6} z={-3.6} dir={1} speed={0.7} phase={5} />
       {terrain && <Crater t={terrain} />}
       {terrain && showTrees && <Orchard t={terrain} />}
       {terrain ? <Terrain t={terrain} raining={raining} /> : (
