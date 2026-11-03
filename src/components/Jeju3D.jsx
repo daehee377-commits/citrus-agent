@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
+import WorkPill from './WorkPill.jsx';
 import * as THREE from 'three';
 
 const K = 16; // 위도·경도 1도를 3D 길이로 바꾸는 배율
@@ -30,6 +31,8 @@ const COAST = [[126.16, 33.31], [126.18, 33.37], [126.24, 33.42], [126.30, 33.47
   [126.42, 33.23], [126.33, 33.22], [126.25, 33.20], [126.18, 33.24]];
 
 // ── 실제 지형: 공개 고도 데이터(public/data/jeju-terrain.json)를 격자 메쉬로 만든다. 한라산·오름·해안선이 실제 높이로 나온다.
+// 최저기온이 없는 날(오늘 오후 이후 발표)이 있어서 "?~19℃" 대신 "최고 19℃"로 쓴다
+const temp = (d) => (d.tmn != null && d.tmx != null ? `${d.tmn}~${d.tmx}℃` : d.tmx != null ? `최고 ${d.tmx}℃` : d.tmn != null ? `최저 ${d.tmn}℃` : '정보 없음');
 const HEIGHT_SCALE = 0.0011; // 높이를 2배쯤 과장해서 입체감을 낸다 (한라산 약 2 단위)
 const SEA = -0.2;
 const yOf = (h) => (h > 0 ? 0.05 + h * HEIGHT_SCALE : SEA);
@@ -130,9 +133,35 @@ function Pin({ place, day, selected, onSelect, terrain }) {
         <mesh key={i} position={p}><sphereGeometry args={[0.14, 16, 16]} /><meshStandardMaterial color="#F08A1C" /></mesh>
       ))}
       {day && !ok && <mesh position={[0.45, 0.25, 0.2]}><coneGeometry args={[0.32, 0.5, 4]} /><meshStandardMaterial color="#4A7BB5" /></mesh>}
-      <Html position={[0, 1.75, 0]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
-        <div className={`j3d-label ${selected ? 'j3d-sel' : ''}`}><strong>{place.name}</strong>{big && <span>{day ? `${day.work} · 강수 ${day.maxPop ?? '?'}%` : '불러오는 중'}</span>}</div>
-      </Html>
+      {/* 이름표도 눌러서 열 수 있다 (핀이 작아서 이름표를 누르는 사람이 많다). 선택되면 이름표 대신 날씨 카드가 열린다 */}
+      {!selected && (
+        <Html position={[0, 1.75, 0]} center distanceFactor={9}>
+          <button type="button" className="j3d-label j3d-click" onClick={(e) => { e.stopPropagation(); onSelect(place.name); }}>
+            <strong>{place.name}</strong><span>{!day ? '불러오는 중' : day.work === '수확 가능' ? '☀ 수확 가능' : '🌧 ' + day.work}</span>
+          </button>
+        </Html>
+      )}
+      {selected && (
+        <Html position={[0, 2.2, 0]} center distanceFactor={9} zIndexRange={[20, 10]}>
+          <div className="j3d-pop" style={{ transform: `translateX(${Math.max(-45, Math.min(45, -place.pos[0] * 9))}%)` }} role="dialog" aria-label={`${place.name} 날씨`}>
+            <button type="button" className="j3d-close" aria-label="닫기" onClick={(e) => { e.stopPropagation(); onSelect(''); }}>×</button>
+            <strong>{place.name}</strong>
+            {day ? (
+              <>
+                <div className="j3d-pop-date">{Number(day.date.slice(4, 6))}월 {Number(day.date.slice(6, 8))}일</div>
+                <div><WorkPill work={day.work} /></div>
+                <ul>
+                  <li>하늘 {day.sky ?? '정보 없음'}</li>
+                  <li>기온 {temp(day)}</li>
+                  <li>강수확률 최대 {day.maxPop ?? '?'}%</li>
+                  {day.rainHours ? <li>비 오는 시간 {day.rainHours}시간</li> : null}
+                </ul>
+                {day.why && !day.why.startsWith('강수확률') && <div className="j3d-pop-why">{day.why}</div>}
+              </>
+            ) : <div>예보를 가져오지 못했습니다.</div>}
+          </div>
+        </Html>
+      )}
     </group>
   );
 }

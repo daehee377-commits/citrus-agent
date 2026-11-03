@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { fetchWeather } from '../api/client.js';
 import Jeju3D, { PLACES } from '../components/Jeju3D.jsx';
-import WorkPill from '../components/WorkPill.jsx';
+
 import SketchfabModels from '../components/SketchfabModels.jsx';
 import { Loading, ErrorBox } from '../components/Status.jsx';
 
@@ -12,7 +12,7 @@ export default function Map3D() {
   const [data, setData] = useState(null); // { 지역이름: 날짜별 예보 배열 }
   const [error, setError] = useState('');
   const [idx, setIdx] = useState(0);
-  const [sel, setSel] = useState('제주시');
+  const [sel, setSel] = useState(''); // 처음에는 아무 지역도 열려 있지 않다 (핀을 누르면 그 지역 날씨 카드가 열린다)
 
   // 한두 지역을 못 가져와도 나머지로 지도를 그린다 (못 가져온 핀은 회색)
   // 먼저 도착한 지역부터 바로 지도에 반영한다 (11곳이 모두 올 때까지 빈 화면으로 기다리지 않는다)
@@ -35,7 +35,6 @@ export default function Map3D() {
   const rainCount = shown.filter((d) => d.work === '포장 작업만').length;
   const missing = pending > 0 ? 0 : PLACES.length - shown.length;
   const raining = rainCount > 0;
-  const cur = byPlace[sel];
 
   return (
     <>
@@ -60,15 +59,23 @@ export default function Map3D() {
           </div>
           <Jeju3D byPlace={byPlace} raining={raining} selected={sel} onSelect={setSel} />
           <div className="card-soft p-3 mt-3">
-            {cur ? (
+            {!sel ? (
+              <div className="notice"><i className="bi bi-hand-index me-1" />지도의 핀이나 지역 이름을 눌러 보세요. 그 지역의 날씨 카드가 열리고, 여기에 5일 예보가 나옵니다.</div>
+            ) : !data[sel] ? (
+              <div className="notice">{sel}의 예보를 가져오지 못했습니다. 다른 지역을 눌러 보세요.</div>
+            ) : (
               <>
-                <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-                  <h5 className="mb-0">{sel}</h5><span className="notice">{label(cur.date)}</span><WorkPill work={cur.work} />
+                <h5 className="mb-2">{sel} 5일 예보 <span className="notice">(날짜를 누르면 지도도 바뀝니다)</span></h5>
+                <div className="d-flex flex-wrap gap-2">
+                  {data[sel].map((d, i) => (
+                    <button key={d.date} type="button" className={`btn btn-sm text-start ${i === idx ? 'btn-leaf' : 'btn-outline-secondary'}`} onClick={() => setIdx(i)}>
+                      <strong>{label(d.date)}</strong> {d.work === '포장 작업만' ? '🌧 포장 작업만' : d.work === '수확 가능' ? '☀ 수확 가능' : '? 확인 필요'}<br />
+                      <span className="notice">{d.tmn != null && d.tmx != null ? `${d.tmn}~${d.tmx}℃` : d.tmx != null ? `최고 ${d.tmx}℃` : '기온 정보 없음'} · 강수 {d.maxPop ?? '?'}%</span>
+                    </button>
+                  ))}
                 </div>
-                <div>{cur.sky ?? '하늘 정보 없음'} · 기온 {cur.tmn ?? '?'}~{cur.tmx ?? '?'}℃ · 강수확률 최대 {cur.maxPop ?? '?'}%{cur.rainHours ? ` · 비 오는 시간 ${cur.rainHours}시간` : ''}</div>
-                {cur.why && <div className="notice mt-1">{cur.why}</div>}
               </>
-            ) : <div className="notice">{sel}의 예보를 가져오지 못했습니다. 다른 지역을 눌러 보세요.</div>}
+            )}
           </div>
           <SketchfabModels />
           <p className="notice mt-2 mb-0">기상청 단기예보(5km 격자) · 지형: 공개 고도 자료(AWS Terrain Tiles, SRTM 등)로 만든 실제 높이이고 높이는 2배쯤 과장했습니다 · 핀 위치는 대략적인 위치입니다. 이웃한 지역은 같은 값이 나올 수 있습니다.</p>
