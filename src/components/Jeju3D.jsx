@@ -53,11 +53,12 @@ function heightAt(t, lat, lng) {
 
 function Terrain({ t, raining }) {
   const geo = useMemo(() => {
+    const lv = craterLevels(t);
     const { cols, rows } = t, stepLng = (t.lng1 - t.lng0) / (cols - 1), stepLat = (t.lat1 - t.lat0) / (rows - 1);
     const pos = new Float32Array(cols * rows * 3), col = new Float32Array(cols * rows * 3);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const h = t.data[r * cols + c], [x, z] = toXZ(t.lat1 - r * stepLat, t.lng0 + c * stepLng), i = (r * cols + c) * 3;
-      pos.set([x, craterY(x, z, yOf(h)), z], i);
+      pos.set([x, craterY(x, z, yOf(h), lv), z], i);
       col.set(h > 0 ? (Math.hypot(x - HALLA[0], z - HALLA[1]) < CRATER_R * 0.8 ? [0.43, 0.35, 0.3] : colorOf(h)) : [0.3, 0.5, 0.6], i); // 분화구 안쪽은 어두운 현무암 색
     }
     const idx = [];
@@ -180,23 +181,37 @@ function Clouds({ level, raining }) {
   ));
 }
 
-// 백록담: 한라산 정상의 분화구. 지형 격자(약 280m)로는 분화구가 보이지 않아서, 정상 둘레를 움푹 파고 가장자리를 살짝 올린 뒤 바닥에 물을 채운다.
-// 실제 크기(지름 약 500m)는 지도에서 너무 작아서 눈에 보이게 과장했다.
-const CRATER_R = 0.28; // 분화구 둘레 반지름(지도 단위)
+// 백록담: 한라산 정상의 분화구. 지형 격자(약 280m)로는 분화구가 보이지 않아서, 정상 둘레를 그릇 모양으로 만든다.
+// 정상 지형은 원뿔처럼 기울어 있어서 그대로 파면 물이 허공에 뜬다 → 바닥을 평평하게 깔고(바닥 반지름 FLOOR_R), 가장자리(CRATER_R)는 정상 높이로 맞춘 뒤,
+// 그 바깥은 원래 지형과 부드럽게 이어 붙인다. 물은 평평한 바닥에 딱 붙인다. 실제 크기(지름 약 500m)는 지도에서 너무 작아서 눈에 보이게 과장했다.
+const CRATER_R = 0.28; // 분화구 가장자리 반지름(지도 단위)
+const FLOOR_R = 0.13; // 평평한 바닥 반지름
 const CRATER_DEPTH = 0.2;
-function craterY(x, z, y) {
+const smooth = (v) => { const k = Math.min(1, Math.max(0, v)); return k * k * (3 - 2 * k); };
+// 정상 근처에서 가장 높은 칸의 높이를 가장자리 높이로, 거기서 CRATER_DEPTH 만큼 내려간 곳을 바닥으로 삼는다
+function craterLevels(t) {
+  const sx = (t.lng1 - t.lng0) / (t.cols - 1), sy = (t.lat1 - t.lat0) / (t.rows - 1);
+  let m = 0;
+  for (let r = 0; r < t.rows; r++) for (let c = 0; c < t.cols; c++) {
+    const [x, z] = toXZ(t.lat1 - r * sy, t.lng0 + c * sx);
+    if (Math.hypot(x - HALLA[0], z - HALLA[1]) < 0.6 && t.data[r * t.cols + c] > m) m = t.data[r * t.cols + c];
+  }
+  const rimY = yOf(m);
+  return { rimY, floorY: rimY - CRATER_DEPTH };
+}
+function craterY(x, z, y, lv) {
   const dd = Math.hypot(x - HALLA[0], z - HALLA[1]);
-  if (dd >= CRATER_R * 1.35) return y;
-  const t = Math.min(1, dd / CRATER_R), bowl = (1 - t * t) * (1 - t * t) * CRATER_DEPTH; // 가운데가 가장 깊은 그릇 모양
-  const rim = 0.05 * Math.exp(-(((dd - CRATER_R * 0.9) / 0.06) ** 2)); // 가장자리 능선
-  return y - bowl + rim;
+  if (dd >= CRATER_R * 1.4) return y;
+  if (dd <= CRATER_R) return lv.floorY + (lv.rimY - lv.floorY) * smooth((dd - FLOOR_R) / (CRATER_R - FLOOR_R)); // 바닥 → 벽 → 가장자리
+  const w = smooth((dd - CRATER_R) / (CRATER_R * 0.4)); // 가장자리 바깥은 원래 지형으로 서서히
+  return lv.rimY * (1 - w) + y * w;
 }
 function Crater({ t }) {
-  const y = yOf(heightAt(t, 33.3617, 126.5292)) - CRATER_DEPTH + 0.02; // 분화구 바닥 높이
+  const lv = useMemo(() => craterLevels(t), [t]);
   return (
-    <group position={[HALLA[0], y, HALLA[1]]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.12, 32]} /><meshStandardMaterial color="#2f8fb8" roughness={0.1} metalness={0.3} /></mesh>
-      <Html position={[0, 0.5, 0]} center distanceFactor={9} style={{ pointerEvents: 'none' }}><div className="j3d-label j3d-halla"><strong>백록담</strong><span>분화구</span></div></Html>
+    <group position={[HALLA[0], lv.floorY + 0.012, HALLA[1]]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[FLOOR_R - 0.015, 40]} /><meshStandardMaterial color="#2f8fb8" roughness={0.1} metalness={0.3} /></mesh>
+      <Html position={[0.55, 0.35, 0.3]} center distanceFactor={9} style={{ pointerEvents: "none" }}><div className="j3d-label j3d-halla"><strong>백록담</strong><span>분화구</span></div></Html>
     </group>
   );
 }
