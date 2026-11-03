@@ -6,7 +6,7 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { Farmer } from './Figures.jsx';
 
-const BASKET = new THREE.Vector3(2.4, 0.35, 1.2);
+const BASKET = new THREE.Vector3(3.1, 0.35, 1.3); // 컨테이너 자리. 나무(잎 반지름 1.3)와 천막 기둥이 겹치지 않게 나무에서 떨어뜨렸다
 const FLIGHT = 0.9; // 열매가 상자까지 날아가는 시간(초)
 const FRUIT_R = 0.16;
 // 컨테이너 안 자리: 한 층에 6개(3×2), 층마다 조금씩 어긋나게 쌓고 가장자리 위로 수북이 올라온다. 딴 열매가 바닥에 떨어져 있지 않고 모두 컨테이너 안에 담긴다.
@@ -169,18 +169,64 @@ function Rain({ active }) {
 }
 
 // 천막: 비 오는 날에는 천막 아래에서 포장 작업만 한다
+// 비 오는 날의 천막: 컨테이너, 포장 작업을 하는 농부, 택배 박스까지 덮는 정사각 천막(기둥 네 개)
 function Tent({ show }) {
   if (!show) return null;
   return (
     <group position={[BASKET.x, 0, BASKET.z]}>
-      <mesh position={[0, 1.7, 0]}><coneGeometry args={[1.4, 0.8, 4]} /><meshStandardMaterial color="#3F6FB5" /></mesh>
-      {[[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].map(([x, z], i) => (
-        <mesh key={i} position={[x, 0.8, z]}><cylinderGeometry args={[0.04, 0.04, 1.6, 8]} /><meshStandardMaterial color="#6A5A48" /></mesh>
+      <mesh position={[0, 2.45, 0]} rotation={[0, Math.PI / 4, 0]}><coneGeometry args={[2.45, 0.9, 4]} /><meshStandardMaterial color="#3F6FB5" /></mesh>
+      {[[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 1.0, z]}><cylinderGeometry args={[0.045, 0.045, 2.0, 8]} /><meshStandardMaterial color="#6A5A48" /></mesh>
       ))}
     </group>
   );
 }
 
+// 택배 박스: 갈색 골판지 상자. 윗면 가운데에 테이프, 앞면에 "제주 감귤" 스티커. open 이면 윗덮개 네 장이 바깥으로 젖혀져 있다.
+const BW = 0.55, BH = 0.38, BD = 0.42;
+function CardboardBox({ position, rotY = 0, open = false, fruitRefs }) {
+  const card = '#C79A5B', flap = '#D8AE70';
+  return (
+    <group position={position} rotation={[0, rotY, 0]}>
+      <mesh position={[0, BH / 2, 0]} castShadow><boxGeometry args={[BW, BH, BD]} /><meshStandardMaterial color={card} roughness={0.9} /></mesh>
+      {!open && <mesh position={[0, BH + 0.002, 0]}><boxGeometry args={[0.1, 0.004, BD + 0.004]} /><meshStandardMaterial color="#EBDDB5" /></mesh>}
+      {!open && <mesh position={[0, BH / 2, BD / 2 + 0.002]}><boxGeometry args={[0.1, BH + 0.004, 0.004]} /><meshStandardMaterial color="#EBDDB5" /></mesh>}
+      <mesh position={[0.12, 0.17, BD / 2 + 0.003]}><boxGeometry args={[0.2, 0.13, 0.004]} /><meshStandardMaterial color="#FFFFFF" /></mesh>
+      <mesh position={[0.12, 0.17, BD / 2 + 0.007]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.045, 0.045, 0.004, 14]} /><meshStandardMaterial color="#F28C1B" /></mesh>
+      {open && (
+        <>
+          <mesh position={[0, BH - 0.02, 0]}><boxGeometry args={[BW - 0.04, 0.02, BD - 0.04]} /><meshStandardMaterial color="#3A2A18" /></mesh>
+          {[[0, BH, -BD / 2, 0.9, 0, 0, BW, 0.2], [0, BH, BD / 2, -0.9, 0, 0, BW, 0.2]].map(([x, y, z, rx], i) => (
+            <group key={i} position={[x, y, z]} rotation={[rx, 0, 0]}><mesh position={[0, 0, (i ? 1 : -1) * 0.1]}><boxGeometry args={[BW, 0.01, 0.2]} /><meshStandardMaterial color={flap} /></mesh></group>
+          ))}
+          {[[-BW / 2, 0.9], [BW / 2, -0.9]].map(([x, rz], i) => (
+            <group key={'s' + i} position={[x, BH, 0]} rotation={[0, 0, -rz]}><mesh position={[(i ? 1 : -1) * 0.1, 0, 0]}><boxGeometry args={[0.2, 0.01, BD]} /><meshStandardMaterial color={flap} /></mesh></group>
+          ))}
+          {fruitRefs && [[-0.13, -0.08], [0.0, -0.08], [0.13, -0.08], [-0.13, 0.08], [0.0, 0.08], [0.13, 0.08]].map(([x, z], i) => (
+            <mesh key={i} ref={(el) => { fruitRefs.current[i] = el; }} position={[x, BH - 0.1, z]} visible={false}><sphereGeometry args={[0.075, 10, 8]} /><meshStandardMaterial color="#F28C1B" roughness={0.5} /></mesh>
+          ))}
+        </>
+      )}
+    </group>
+  );
+}
+
+// 비 오는 날의 포장 작업장: 농부가 컨테이너에서 귤을 집어 열린 택배 박스에 담고(담을 때마다 박스 속 귤이 늘어난다), 옆에는 포장을 끝낸 박스가 쌓여 있다.
+function PackStation({ show }) {
+  const fruitRefs = useRef([]);
+  useFrame(({ clock }) => {
+    const n = Math.floor((clock.elapsedTime + 1.25) / 5) % 6; // 농부가 한 번 담을 때마다(5초) 하나씩 늘고, 6개가 차면 비운다
+    fruitRefs.current.forEach((m, i) => { if (m) m.visible = i < n; });
+  });
+  if (!show) return null;
+  return (
+    <group>
+      <CardboardBox position={[BASKET.x - 1.1, 0, BASKET.z]} open fruitRefs={fruitRefs} rotY={0.1} />
+      {[[0, 0.03], [0.38, -0.05], [0.76, 0.04]].map(([y, r], i) => <CardboardBox key={i} position={[BASKET.x + 1.15, y, BASKET.z]} rotY={r} />)}
+      <Farmer mode="pick" reach={-1.2} position={[BASKET.x - 0.75, 0, BASKET.z - 0.65]} scale={1.15} yawTree={0.86} yawCrate={-0.49} />{/* 컨테이너에서 귤을 집어 박스에 담는 농부 */}
+    </group>
+  );
+}
 export default function Harvest3D({ raining, picked, onPick, resetKey }) {
   const states = useRef(FRUITS.map(() => ({ status: 'tree', landed: false })));
   const [, force] = useState(0);
@@ -205,13 +251,14 @@ export default function Harvest3D({ raining, picked, onPick, resetKey }) {
         <directionalLight position={[5, 8, 4]} intensity={raining ? 0.8 : 1.6} castShadow />
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[7, 48]} /><meshStandardMaterial color={raining ? '#6E8F62' : '#7DB36B'} /></mesh>
         <Tree />
-        <Farmer mode="pick" position={[1.3, 0, 1.25]} scale={1.15} yawTree={-2.33} yawCrate={1.62} />{/* 나무의 귤을 따서 컨테이너에 담는 농부 */}
+        {!raining && <Farmer mode="pick" position={[1.75, 0, 1.1]} scale={1.15} yawTree={-2.13} yawCrate={1.42} />}{/* 맑은 날: 나무의 귤을 따서 컨테이너에 담는 농부 */}
+        <PackStation show={raining} />
         {DECOR.map(([x, z, s, seed]) => <DecorTree key={seed} x={x} z={z} s={s} seed={seed} />)}
         {FRUITS.map((p, i) => <Fruit key={i} home={p} land={SLOTS[i]} state={states.current[i]} onPick={() => pick(i)} />)}
         <Basket />
         <Tent show={raining} />
         <Rain active={raining} />
-        <OrbitControls enablePan={false} minDistance={4} maxDistance={12} maxPolarAngle={Math.PI / 2.1} target={[0.9, 0.95, 0.5]} />
+        <OrbitControls enablePan={false} minDistance={4} maxDistance={12} maxPolarAngle={Math.PI / 2.1} target={[1.4, 0.95, 0.6]} />
       </Canvas>
     </div>
   );

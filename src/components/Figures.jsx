@@ -36,7 +36,7 @@ export function Figure({ shirt = '#3F7A3F', pants = '#475A7A', skin = '#E8B48A',
 
 // 귤을 따는 농부. mode 'pick' 은 나무 쪽을 보고 팔을 뻗어 귤을 따서 → 컨테이너 쪽으로 돌아 담는 동작을 5초마다 되풀이한다.
 // mode 'pack'(비 예보)은 컨테이너를 보고 서서 팔을 오르내리며 포장한다. yawTree·yawCrate 는 사람이 나무 쪽·컨테이너 쪽을 볼 때의 방향(라디안)이다.
-export function Farmer({ mode = 'pick', position = [0, 0, 0], scale = 1, yawTree = -1.5, yawCrate = 0.5, phase = 0, shirt = '#3F7A3F', pants = '#475A7A' }) {
+export function Farmer({ reach = -2.5, mode = 'pick', position = [0, 0, 0], scale = 1, yawTree = -1.5, yawCrate = 0.5, phase = 0, shirt = '#3F7A3F', pants = '#475A7A' }) {
   const body = useRef(), armL = useRef(), armR = useRef(), fruit = useRef();
   useFrame(({ clock }) => {
     if (!body.current) return;
@@ -48,9 +48,9 @@ export function Farmer({ mode = 'pick', position = [0, 0, 0], scale = 1, yawTree
     }
     const ph = (t / 5) % 1;
     let yaw = yawTree, r = -0.4, show = false;
-    if (ph < 0.35) { r = lerp(-0.4, -2.5, smooth(ph / 0.35)); } // 손을 위로 뻗는다
-    else if (ph < 0.45) { r = -2.5 + 0.15 * Math.sin((ph - 0.35) * 60); show = ph > 0.4; } // 귤을 딴다
-    else if (ph < 0.65) { const k = smooth((ph - 0.45) / 0.2); yaw = lerpAngle(yawTree, yawCrate, k); r = lerp(-2.5, -1.2, k); show = true; } // 컨테이너 쪽으로 돈다
+    if (ph < 0.35) { r = lerp(-0.4, reach, smooth(ph / 0.35)); } // 손을 위로 뻗는다
+    else if (ph < 0.45) { r = reach + 0.15 * Math.sin((ph - 0.35) * 60); show = ph > 0.4; } // 귤을 딴다
+    else if (ph < 0.65) { const k = smooth((ph - 0.45) / 0.2); yaw = lerpAngle(yawTree, yawCrate, k); r = lerp(reach, -1.2, k); show = true; } // 컨테이너 쪽으로 돈다
     else if (ph < 0.8) { const k = smooth((ph - 0.65) / 0.15); yaw = yawCrate; r = lerp(-1.2, -0.9, k); show = ph < 0.75; } // 컨테이너에 담는다
     else { yaw = lerpAngle(yawCrate, yawTree, smooth((ph - 0.8) / 0.2)); r = lerp(-0.9, -0.4, smooth((ph - 0.8) / 0.2)); } // 다시 나무 쪽으로
     body.current.rotation.y = yaw; armR.current.rotation.x = r; armL.current.rotation.x = -0.3 + 0.12 * Math.sin(t * 2); fruit.current.visible = show;
