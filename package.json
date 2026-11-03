@@ -19,7 +19,8 @@
     "test:supabase": "node --env-file=.env.local tests/supabase.test.js",
     "images": "node --env-file=.env.local scripts/fetch-images.mjs && node scripts/download-images.mjs",
     "test:orders": "node --env-file=.env.local tests/orders.test.js",
-    "test:sheet": "node tests/orderSheet.test.js"
+    "test:sheet": "node tests/orderSheet.test.js",
+    "test:quiz": "node tests/quiz.test.js"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.6.0",
